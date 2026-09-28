@@ -1,0 +1,16 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: db-project
+    volumes:
+      - ./docker/mysql/data:/var/lib/mysql
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d:ro
+      - ./docker/mysql/initdb.d:/docker-entrypoint-initdb.d
+    environment:
+      - MYSQL_ROOT_PASSWORD=mysql
+      - MYSQL_DATABASE=project
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=password
+      - TZ=Asia/Tokyo
+    ports:
+      - '3306:3306'
