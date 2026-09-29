@@ -50,6 +50,22 @@ updater	bigint unsigned		users.id
 updated_at	datetime(3)				
 deleted_at	datetime(3)		
 
+値の決まり
+・users.role:1=管理者 2=リーダー 3=一般ユーザー
+・users.password:bcrypt でハッシュ化した値(平文は保存しない)
+・tasks.status:未対応/対応中/レビュー中/完了/対応中止
+・tasks.user_id:担当者
+・deadline:日付のみ使う(時刻は 00:00:00)
+・created_at:登録時に自動で現在日時が入る
+・deleted_at:論理削除した日時。NULL が有効なデータ(users / projects / tasks)
+・project_member は物理削除(ユーザー削除時は、そのユーザーの行も削除する)
+
+テーブルの管理
+・テーブルは Knex のマイグレーションで作成・変更する(backend/db/migrations)
+・テーブルごとに1ファイル。変更するときは既存のファイルを書き換えず、新しいマイグレーションを追加する
+・初期データ(管理者 admin)は seed で登録する(backend/db/seeds)
+・適用状況は knex_migrations / knex_migrations_lock テーブルで管理される
+
 dbのつながり
 users
  │

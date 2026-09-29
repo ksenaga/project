@@ -17,10 +17,13 @@
 ### 認証
 
 * ログイン
+* ログアウト
+* ログイン状態の保持（有効期限 1 日）
 
 ### ユーザー管理
 
-* ユーザー一覧
+* ユーザー一覧（参画プロジェクト数を表示）
+* ユーザー詳細（参画しているプロジェクト名を表示）
 * ユーザー登録
 * ユーザー編集
 * ユーザー削除
@@ -28,22 +31,22 @@
 
 ### プロジェクト管理
 
-* プロジェクト一覧
+* プロジェクト一覧（期限・メンバーを表示）
 * プロジェクト作成
-* プロジェクト詳細
 * プロジェクト編集
 * プロジェクト削除
-* プロジェクトメンバー管理
+* プロジェクトメンバー管理（作成・編集時に選択）
 
 ### タスク管理
 
-* タスク一覧
+* タスク一覧（ステータスごとの列で表示するボード）
 * タスク登録
 * タスク詳細
 * タスク編集
 * タスク削除
+* タスクのコピー
 * 担当者設定
-* ステータス管理
+* ステータス管理（ドラッグ&ドロップで変更）
 * 修正内容・修正理由・Git URL・メモの記録
 
 ## 利用者
@@ -54,10 +57,29 @@
 
 ## 技術構成
 
-* Frontend: React / TypeScript / MUI
-* Backend: Node.js / Express / TypeScript
-* Database: MySQL
-* Authentication: JWT (Cookieに保存)
+* Frontend: React / TypeScript / MUI / React Router / dnd-kit（ドラッグ&ドロップ）/ Vite
+* Backend: Node.js / Express / TypeScript / Knex（マイグレーション・クエリ）
+* Database: MySQL 8.4（Docker）
+* Authentication: JWT（httpOnly Cookie に保存）/ bcrypt（パスワードのハッシュ化）
+
+## ディレクトリ構成
+
+```text
+frontend/src
+  pages/        画面（ログイン・プロジェクト一覧・タスク一覧・ユーザー一覧）
+  components/   ダイアログ・カードなどの部品
+  api/          バックエンド API の呼び出し
+  auth/         ログイン状態の管理
+backend
+  src/routes/        URL と controller の対応
+  src/controllers/   リクエストの受け取り・入力チェック
+  src/services/      業務ルール・権限チェック
+  src/repositories/  DB アクセス
+  src/middlewares/   認証（JWT）・権限・エラー処理
+  db/migrations/     テーブル定義（テーブルごとに 1 ファイル）
+  db/seeds/          初期データ（管理者）
+plan/           要件定義・画面設計・DB設計・API設計
+```
 
 ## システム構成
 
@@ -88,17 +110,18 @@ MySQL
 
 ## 権限
 
-| 機能       | 管理者 | リーダー         | 一般ユーザー   |
-| -------- | --- | ------------ | -------- |
-| プロジェクト閲覧 | ○   | ○            | ○        |
-| プロジェクト作成 | ○   | ×            | ×        |
-| プロジェクト編集 | ○   | ×            | ×        |
-| プロジェクト削除 | ○   | ×            | ×        |
-| タスク閲覧    | ○   | ○            | ○        |
-| タスク作成    | ○   | ○            | ○        |
-| タスク編集    | ○   | ○            | 自分のタスクのみ |
-| タスク削除    | ○   | ○            | ×        |
-| ユーザー管理   | ○   | プロジェクトメンバー管理 | 自分のみ     |
+| 機能 | 管理者 | リーダー | 一般ユーザー |
+| --- | --- | --- | --- |
+| プロジェクト閲覧 | ○ | ○ | ○ |
+| プロジェクト作成・編集・削除（メンバー設定を含む） | ○ | × | × |
+| タスク閲覧 | ○ | メンバーのプロジェクトのみ | メンバーのプロジェクトのみ |
+| タスク作成（未対応・対応中のみ） | ○ | ○ | ○ |
+| タスク編集 | ○ | ○ | 自分のタスクのみ（ステータス・修正内容・修正理由・Git URL・メモ） |
+| ステータスを完了・対応中止にする | ○ | ○ | × |
+| タスク削除 | ○ | ○ | × |
+| ユーザー閲覧 | ○ | ○ | ○ |
+| ユーザー登録・削除 | ○ | × | × |
+| ユーザー編集 | ○ | 自分のみ | 自分のみ |
 
 ※ 詳細な権限・業務ルールは設計資料を参照。
 
@@ -128,13 +151,42 @@ MySQL
 
 ### 必要なもの
 
-* Node.js
+* Node.js（v24 で動作確認）
 * npm
-* MySQL
+* Docker（MySQL を動かす）
 
 ### セットアップ
 
-後述予定。
+```bash
+# 1. DB を起動
+docker compose up -d
+
+# 2. バックエンド
+cd backend
+npm install
+cp .env.example .env
+# .env の JWT_SECRET に `openssl rand -hex 32` で生成した値を入れる
+npm run migrate   # テーブルを作成
+npm run seed      # 管理者（admin / admin）を登録
+npm run dev       # http://localhost:3000
+
+# 3. フロントエンド（別のターミナル）
+cd frontend
+npm install
+npm run dev       # http://localhost:5173（/api はバックエンドに転送される）
+```
+
+ブラウザで http://localhost:5173 を開き、`admin` / `admin` でログインする。
+
+### マイグレーション
+
+| コマンド（backend で実行） | 内容 |
+| --- | --- |
+| `npm run migrate` | 未適用のマイグレーションを適用 |
+| `npm run migrate:rollback` | 直前の適用を取り消す |
+| `npm run migrate:status` | 適用状況を表示 |
+| `npm run migrate:make -- <名前>` | 新しいマイグレーションを作成 |
+| `npm run seed` | 初期データを登録（何度実行しても重複しない） |
 
 ## 開発方針
 
