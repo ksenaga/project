@@ -11,6 +11,7 @@ import {
   Stack,
   TextField,
 } from '@mui/material'
+import type { Screen } from '../../api/screens'
 import type { Task, TaskInput } from '../../api/tasks'
 import type { Member } from '../../api/users'
 import { CREATABLE_STATUSES, type TaskStatus } from '../../constants/taskStatus'
@@ -25,6 +26,8 @@ type Props = {
   user: LoginUser
   // 担当者の候補(プロジェクトメンバー)
   members: Member[]
+  // 画面名の候補(プロジェクトに登録されている画面名)
+  screens: Screen[]
   // 渡されたら編集、なければ新規作成
   task?: Task
   // 渡されたらこのタスクの内容をコピーして新規作成する
@@ -40,6 +43,7 @@ const toNullable = (value: string) => (value.trim() === '' ? null : value.trim()
 const TaskFormDialog = ({
   user,
   members,
+  screens,
   task,
   copyFrom,
   defaultStatus,
@@ -67,7 +71,8 @@ const TaskFormDialog = ({
     task?.status ?? copyStatus ?? defaultStatus ?? '未対応',
   )
   const [deadline, setDeadline] = useState(task?.deadline ?? '')
-  const [screen, setScreen] = useState(source?.screen ?? '')
+  // 画面名は必須。'' は未選択(以前の画面名なしのタスクを編集・コピーしたときも未選択になる)
+  const [screenId, setScreenId] = useState<number | ''>(source?.screen?.id ?? '')
   const [modified, setModified] = useState(task?.modified ?? '')
   const [reason, setReason] = useState(task?.reason ?? '')
   const [git, setGit] = useState(task?.git ?? '')
@@ -96,10 +101,7 @@ const TaskFormDialog = ({
     detail: detail.trim() === '' ? '説明を入力してください' : null,
     userId: userId === '' ? '担当者を選んでください' : null,
     deadline: deadline === '' ? '期限を入力してください' : null,
-    screen:
-      screen.trim().length > VARCHAR_MAX_LENGTH
-        ? `${VARCHAR_MAX_LENGTH}文字以内で入力してください`
-        : null,
+    screenId: screenId === '' ? '画面名を選んでください' : null,
     git:
       git.trim().length > VARCHAR_MAX_LENGTH
         ? `${VARCHAR_MAX_LENGTH}文字以内で入力してください`
@@ -128,7 +130,7 @@ const TaskFormDialog = ({
           detail: detail.trim(),
           user_id: userId as number,
           deadline,
-          screen: toNullable(screen),
+          screen_id: screenId as number,
         }
 
     setSaving(true)
@@ -228,13 +230,29 @@ const TaskFormDialog = ({
                 slotProps={{ inputLabel: { shrink: true } }}
               />
               <TextField
+                select
                 label="画面名"
-                value={screen}
-                onChange={(e) => setScreen(e.target.value)}
-                error={show('screen') !== null}
-                helperText={show('screen') ?? ' '}
+                required
+                value={screenId}
+                onChange={(e) => setScreenId(Number(e.target.value))}
+                error={show('screenId') !== null}
+                helperText={
+                  show('screenId') ??
+                  (screens.length === 0 ? '先に「画面名の管理」で登録してください' : ' ')
+                }
                 disabled={saving || limited}
-              />
+              >
+                {screens.length === 0 && (
+                  <MenuItem value="" disabled>
+                    画面名が登録されていません
+                  </MenuItem>
+                )}
+                {screens.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Box>
             <TextField
               label="説明"

@@ -141,7 +141,8 @@ const TaskDetailDialog = ({
                   <Typography variant="body2">{formatDate(task.deadline)}</Typography>
                 </Field>
                 <Field label="画面名">
-                  <Text value={task.screen} />
+                  {/* 画面名を必須にする前に作ったタスクは、画面名がない場合がある */}
+                  <Text value={task.screen?.name ?? null} />
                 </Field>
               </Box>
               <Field label="説明">

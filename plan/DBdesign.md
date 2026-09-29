@@ -38,7 +38,7 @@ title	varchar(50)			v
 detail	text			v	
 user_id	bigint unsigned		users.id	v	
 status	varchar(20)			v	
-screen	varchar(255)				
+screen_id	bigint unsigned		screens.id		
 deadline	datetime(3)			v	
 modified	text				
 reason	text				
@@ -50,15 +50,28 @@ updater	bigint unsigned		users.id
 updated_at	datetime(3)				
 deleted_at	datetime(3)		
 
+screens(画面名管理)(project_idとnameで複合ユニーク制約)(物理削除)
+列名	データ・タイプ	PK	FK	Not null	オートインクリメント
+id	bigint unsigned	v		v	v
+project_id	bigint unsigned		projects.id	v	
+name	varchar(50)			v	
+creater	bigint unsigned		users.id	v	
+created_at	datetime(3)			v	
+updater	bigint unsigned		users.id		
+updated_at	datetime(3)				
+
 値の決まり
 ・users.role:1=管理者 2=リーダー 3=一般ユーザー
 ・users.password:bcrypt でハッシュ化した値(平文は保存しない)
 ・tasks.status:未対応/対応中/レビュー中/完了/対応中止
 ・tasks.user_id:担当者
+・tasks.screen_id:画面名(そのプロジェクトの screens から選ぶ。API で必須にしている。画面名を必須にする前に作ったタスクは NULL の場合があるため、列は NULL を許可)
+・screens は物理削除。タスク(削除済みを除く)で使われている画面名は削除できない
 ・deadline:日付のみ使う(時刻は 00:00:00)
 ・created_at:登録時に自動で現在日時が入る
 ・deleted_at:論理削除した日時。NULL が有効なデータ(users / projects / tasks)
 ・project_member は物理削除(ユーザー削除時は、そのユーザーの行も削除する)
+・以前の tasks.screen(自由入力の文字列)は、マイグレーション(20260929000001_create_screens)で screens に移し、tasks.screen_id に置き換えた
 
 テーブルの管理
 ・テーブルは Knex のマイグレーションで作成・変更する(backend/db/migrations)
@@ -70,7 +83,9 @@ dbのつながり
 users
  │
  ├──< projects ──< tasks
- │      │
+ │      │           │
+ │      │           └── screens(画面名)
+ │      ├──< screens
  │      └──< project_member >── users
  │
  └──< tasks

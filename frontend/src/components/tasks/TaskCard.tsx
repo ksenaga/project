@@ -29,6 +29,16 @@ export const TaskCardContent = ({
         transform: lifted ? 'rotate(2deg)' : undefined,
       }}
     >
+      {task.screen && (
+        <Typography
+          variant="caption"
+          component="p"
+          noWrap
+          sx={{ color: 'primary.main', fontWeight: 600, mb: 0.25 }}
+        >
+          {task.screen.name}
+        </Typography>
+      )}
       <Typography variant="body2" sx={{ fontWeight: 600, wordBreak: 'break-word', mb: 1 }}>
         {task.title}
       </Typography>

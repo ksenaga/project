@@ -21,6 +21,12 @@ API設計
 タスク詳細	GET	/api/projects/{project_id}/tasks/{id}
 タスク編集	PATCH	/api/projects/{project_id}/tasks/{id}
 タスク削除	DELETE	/api/projects/{project_id}/tasks/{id}
+【画面名】
+機能	HTTPメソッド	URL
+画面名一覧取得	GET	/api/projects/{project_id}/screens
+画面名追加	POST	/api/projects/{project_id}/screens
+画面名編集	PATCH	/api/projects/{project_id}/screens/{id}
+画面名削除	DELETE	/api/projects/{project_id}/screens/{id}
 【ユーザー一覧】
 機能	HTTPメソッド	URL
 ユーザー一覧取得	GET	/api/users
@@ -77,13 +83,18 @@ Request
 
 【タスク】
 タスク一覧 GET /api/projects/{project_id}/tasks
+絞り込み(クエリパラメータ。すべて任意。指定したものすべてに当てはまるタスクを返す)
+	q=文字	タイトル・説明・修正内容・修正理由・メモに含まれる(100文字以内)
+	assignee_id=1	担当者
+	screen_id=1	画面名(screen_id=none は画面名なし。画面名を必須にする前に作ったタスク用)
+例: /api/projects/1/tasks?q=ログイン&assignee_id=2&screen_id=3
 タスク作成 POST /api/projects/{project_id}/tasks
 {
 	"title":"タイトル",	※必須。50文字以内
 	"detail":"タスクの説明",	※必須
 	"user_id":1,	※必須。担当者(プロジェクトメンバー)
 	"status":"未対応",	※任意。"未対応" か "対応中" のみ(省略時は "未対応")
-	"screen":"",	※任意。255文字以内
+	"screen_id":1,	※必須。プロジェクトに登録された画面名
 	"deadline":"2027-01-01",	※必須
 	"modified":"",	※任意
 	"reason":"",	※任意
@@ -98,7 +109,7 @@ Request
 	"detail":"タスクの説明",
 	"user_id":1,
 	"status":"対応中",
-	"screen":"",
+	"screen_id":1,
 	"deadline":"2027-01-01",
 	"modified":"",
 	"reason":"",
@@ -106,7 +117,18 @@ Request
 	"memo":""
 }
 ※一般ユーザーが送れるのは status / modified / reason / git / memo のみ
+※screen_id を送る場合は null 不可(画面名は必須)
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
+
+【画面名】
+※プロジェクトメンバー全員(管理者は全プロジェクト)が追加・編集・削除できる
+画面名一覧取得 GET /api/projects/{project_id}/screens
+画面名追加 POST /api/projects/{project_id}/screens
+画面名編集 PATCH /api/projects/{project_id}/screens/{id}
+{
+	"name":"ログイン画面"	※必須。50文字以内。同じプロジェクトで重複不可
+}
+画面名削除 DELETE /api/projects/{project_id}/screens/{id}
 
 【ユーザー】
 ユーザー一覧 GET /api/users
@@ -195,6 +217,10 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 		"assignee":{
 			"id":1,
 			"name":"担当者"
+		},
+		"screen":{	※画面名を必須にする前に作ったタスクは null
+			"id":1,
+			"name":"ログイン画面"
 		}
 	},
 	{}
@@ -209,7 +235,6 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 	"status":"対応中",
 	"deadline":"2027-01-01",
 	"detail":"タスクの説明",
-	"screen":null,
 	"modified":null,
 	"reason":null,
 	"git":null,
@@ -217,9 +242,32 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 	"assignee":{
 		"id":1,
 		"name":"担当者"
-	}
+	},
+	"screen":null
 }
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
+(なし)
+
+【画面名】
+画面名一覧取得 GET /api/projects/{project_id}/screens
+※名前順。task_count は画面名を使っているタスク数
+[
+	{
+		"id":1,
+		"name":"ログイン画面",
+		"task_count":2
+	},
+	{}
+]
+画面名追加 POST /api/projects/{project_id}/screens
+画面名編集 PATCH /api/projects/{project_id}/screens/{id}
+※2つとも同じ形
+{
+	"id":1,
+	"name":"ログイン画面",
+	"task_count":2
+}
+画面名削除 DELETE /api/projects/{project_id}/screens/{id}
 (なし)
 
 【ユーザー】
@@ -271,6 +319,8 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"リクエストが不正です。"(必須項目がない、形式が違うなど)
 ・"存在しないユーザーが含まれています"(プロジェクトの member_ids)
 ・"担当者はプロジェクトメンバーから選んでください"
+・"画面名を選んでください"
+・"画面名はプロジェクトに登録されているものから選んでください"
 ・"タスクは未対応か対応中で作成してください"
 ・"パスワードは8〜72文字で入力してください"
 ・"自分の権限は変更できません"
@@ -285,10 +335,13 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"プロジェクトが存在しません"
 ・"タスクが存在しません"
 ・"ユーザーが存在しません"
+・"画面名が存在しません"
 409 Conflict
 ・"未完了のタスクを担当しているメンバーはプロジェクトから外せません"(プロジェクト編集)
 ・"完了したタスクは編集できません"(タスク編集)
 ・"このユーザー名は既に使われています"(ユーザー作成・編集)
+・"この画面名は既に登録されています"(画面名追加・編集)
+・"タスクで使われている画面名は削除できません"(画面名削除)
 ・"未完了のタスクを担当しているため削除できません"(ユーザー削除)
 500 サーバーエラー
 ・"サーバーエラーが発生しました"
@@ -333,6 +386,19 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
 成功 204
 失敗 401 or 403(一般ユーザー) or 404
+
+画面名一覧取得 GET /api/projects/{project_id}/screens
+成功 200
+失敗 401 or 403(管理者以外でプロジェクトメンバーでない) or 404
+画面名追加 POST /api/projects/{project_id}/screens
+成功 201
+失敗 400 or 401 or 403 or 404 or 409(重複)
+画面名編集 PATCH /api/projects/{project_id}/screens/{id}
+成功 200
+失敗 400 or 401 or 403 or 404 or 409(重複)
+画面名削除 DELETE /api/projects/{project_id}/screens/{id}
+成功 204
+失敗 401 or 403 or 404 or 409(タスクで使われている)
 
 ユーザ一覧 GET /api/users
 成功 200

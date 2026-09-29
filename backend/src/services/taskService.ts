@@ -1,6 +1,5 @@
 import { badRequest, conflict, forbidden, notFound } from '../errors/HttpError'
 import * as projectMemberRepository from '../repositories/projectMemberRepository'
-import * as projectRepository from '../repositories/projectRepository'
 import * as taskRepository from '../repositories/taskRepository'
 import {
   CREATABLE_STATUSES,
@@ -8,21 +7,15 @@ import {
   MEMBER_SETTABLE_STATUSES,
   TASK_STATUS,
   type Task,
+  type TaskFilter,
   type TaskInput,
   type TaskSummary,
 } from '../types/task'
 import { ROLE, type AuthUser } from '../types/user'
+import { ensureProjectAccess } from './projectAccess'
+import * as screenService from './screenService'
 
 const taskNotFound = () => notFound('タスクが存在しません')
-
-// 管理者は全プロジェクト、それ以外はメンバーになっているプロジェクトのタスクだけ扱える
-const ensureProjectAccess = async (projectId: number, user: AuthUser) => {
-  const project = await projectRepository.findById(projectId)
-  if (!project) throw notFound('プロジェクトが存在しません')
-  if (user.role !== ROLE.ADMIN && !(await projectMemberRepository.isMember(projectId, user.id))) {
-    throw forbidden()
-  }
-}
 
 // タスクには必ずプロジェクトメンバーの担当者を設定する
 const ensureAssigneeIsMember = async (projectId: number, userId: number) => {
@@ -37,9 +30,21 @@ const getTask = async (projectId: number, id: number): Promise<Task> => {
   return task
 }
 
-export const list = async (projectId: number, user: AuthUser): Promise<TaskSummary[]> => {
+// 画面名はそのプロジェクトに登録されているものから選ぶ
+const ensureScreenInProject = async (projectId: number, screenId: number | undefined) => {
+  if (screenId === undefined) return
+  if (!(await screenService.exists(projectId, screenId))) {
+    throw badRequest('画面名はプロジェクトに登録されているものから選んでください')
+  }
+}
+
+export const list = async (
+  projectId: number,
+  filter: TaskFilter,
+  user: AuthUser,
+): Promise<TaskSummary[]> => {
   await ensureProjectAccess(projectId, user)
-  return taskRepository.findByProject(projectId)
+  return taskRepository.findByProject(projectId, filter)
 }
 
 export const get = async (projectId: number, id: number, user: AuthUser): Promise<Task> => {
@@ -57,6 +62,7 @@ export const create = async (
     throw badRequest('タスクは未対応か対応中で作成してください')
   }
   await ensureAssigneeIsMember(projectId, input.user_id)
+  await ensureScreenInProject(projectId, input.screen_id)
 
   const id = await taskRepository.create(projectId, input, user.id)
   return getTask(projectId, id)
@@ -90,6 +96,7 @@ export const update = async (
   if (input.user_id !== undefined && input.user_id !== current.assignee.id) {
     await ensureAssigneeIsMember(projectId, input.user_id)
   }
+  await ensureScreenInProject(projectId, input.screen_id)
 
   const count = await taskRepository.update(projectId, id, input, user.id)
   if (count === 0) throw taskNotFound()

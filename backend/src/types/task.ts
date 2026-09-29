@@ -1,4 +1,5 @@
 import type { Member } from './project'
+import type { ScreenRef } from './screen'
 
 export const TASK_STATUS = {
   TODO: '未対応',
@@ -39,12 +40,12 @@ export type TaskSummary = {
   status: TaskStatus
   deadline: string // "YYYY-MM-DD"
   assignee: Member
+  screen: ScreenRef | null
 }
 
 // 詳細で返すタスク
 export type Task = TaskSummary & {
   detail: string
-  screen: string | null
   modified: string | null
   reason: string | null
   git: string | null
@@ -58,9 +59,18 @@ export type TaskInput = {
   user_id: number
   status: TaskStatus
   deadline: string
-  screen: string | null
+  screen_id: number // 必須(以前のタスクは画面名なし(NULL)の場合がある)
   modified: string | null
   reason: string | null
   git: string | null
   memo: string | null
+}
+
+// 一覧の絞り込み条件(指定したものすべてに当てはまるタスクを返す)
+export type TaskFilter = {
+  // タイトル・説明・修正内容・修正理由・メモに含まれる文字
+  q?: string
+  assigneeId?: number
+  // null は「画面名が未設定」
+  screenId?: number | null
 }

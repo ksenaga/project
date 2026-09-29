@@ -26,21 +26,26 @@ import {
 import { Link as RouterLink, useParams } from 'react-router'
 import { ApiError } from '../api/client'
 import { fetchProject, type ProjectDetail } from '../api/projects'
+import { fetchScreens, type Screen } from '../api/screens'
 import {
   createTask,
   deleteTask,
+  EMPTY_TASK_FILTER,
   fetchTasks,
   updateTask,
   type Task,
+  type TaskFilter,
   type TaskInput,
   type TaskSummary,
 } from '../api/tasks'
 import { useAuth } from '../auth/AuthContext'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import MemberAvatars from '../components/MemberAvatars'
+import ScreenManageDialog from '../components/tasks/ScreenManageDialog'
 import TaskCard, { TaskCardContent } from '../components/tasks/TaskCard'
 import TaskColumn from '../components/tasks/TaskColumn'
 import TaskDetailDialog from '../components/tasks/TaskDetailDialog'
+import TaskFilterBar from '../components/tasks/TaskFilterBar'
 import TaskFormDialog from '../components/tasks/TaskFormDialog'
 import {
   CREATABLE_STATUSES,
@@ -48,6 +53,7 @@ import {
   TASK_STATUSES,
   type TaskStatus,
 } from '../constants/taskStatus'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDate } from '../utils/date'
 import { canEditTask, canMoveTask } from '../utils/taskPermission'
 
@@ -57,6 +63,7 @@ type DialogState =
   | { type: 'copy'; task: Task }
   | { type: 'edit'; task: Task }
   | { type: 'delete'; task: Task }
+  | { type: 'screens' }
   | null
 
 type Notice = { message: string; severity: 'success' | 'error' }
@@ -79,6 +86,12 @@ const TaskBoardPage = () => {
 
   const [project, setProject] = useState<ProjectDetail | null>(null)
   const [tasks, setTasks] = useState<TaskSummary[] | null>(null)
+  const [screens, setScreens] = useState<Screen[]>([])
+  const [filter, setFilter] = useState<TaskFilter>(EMPTY_TASK_FILTER)
+  // 文字検索は入力が止まってから実行する
+  const q = useDebouncedValue(filter.q, 300)
+  const { assigneeId, screenId } = filter
+  const filtering = q.trim() !== '' || assigneeId !== '' || screenId !== ''
   const [loadError, setLoadError] = useState<string | null>(null)
   const [dialog, setDialog] = useState<DialogState>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -97,17 +110,22 @@ const TaskBoardPage = () => {
     [setUser],
   )
 
-  // 値を増やすとプロジェクトとタスクを取り直す
+  // 値を増やすとプロジェクト・画面名・タスクを取り直す
   const [reloadKey, setReloadKey] = useState(0)
   const reload = () => setReloadKey((k) => k + 1)
 
   useEffect(() => {
     let ignore = false
-    Promise.all([fetchProject(projectId), fetchTasks(projectId)])
-      .then(([projectData, taskData]) => {
+    Promise.all([
+      fetchProject(projectId),
+      fetchTasks(projectId, { q, assigneeId, screenId }),
+      fetchScreens(projectId),
+    ])
+      .then(([projectData, taskData, screenData]) => {
         if (ignore) return
         setProject(projectData)
         setTasks(taskData)
+        setScreens(screenData)
         setLoadError(null)
       })
       .catch((err: unknown) => {
@@ -122,7 +140,7 @@ const TaskBoardPage = () => {
     return () => {
       ignore = true
     }
-  }, [projectId, reloadKey, handleAuthError])
+  }, [projectId, reloadKey, q, assigneeId, screenId, handleAuthError])
 
   if (!user) return null
 
@@ -219,7 +237,9 @@ const TaskBoardPage = () => {
                 <EventOutlinedIcon sx={{ fontSize: 16 }} />
                 <Typography variant="body2">期限 {formatDate(project.deadline)}</Typography>
               </Stack>
-              {tasks && <Typography variant="body2">タスク {tasks.length} 件</Typography>}
+              {tasks && !filtering && (
+                <Typography variant="body2">タスク {tasks.length} 件</Typography>
+              )}
             </Stack>
           )}
         </Box>
@@ -229,6 +249,23 @@ const TaskBoardPage = () => {
           </Box>
         )}
       </Stack>
+
+      {project && (
+        <TaskFilterBar
+          filter={filter}
+          onChange={setFilter}
+          members={project.members}
+          screens={screens}
+          resultCount={filtering && tasks ? tasks.length : null}
+          onManageScreens={() => setDialog({ type: 'screens' })}
+        />
+      )}
+
+      {filtering && tasks?.length === 0 && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          条件に一致するタスクはありません
+        </Alert>
+      )}
 
       {loadError && (
         <Alert
@@ -320,6 +357,7 @@ const TaskBoardPage = () => {
           <TaskFormDialog
             user={user}
             members={project.members}
+            screens={screens}
             task={dialog.type === 'edit' ? dialog.task : undefined}
             copyFrom={dialog.type === 'copy' ? dialog.task : undefined}
             defaultStatus={dialog.type === 'create' ? dialog.status : TASK_STATUS.TODO}
@@ -327,6 +365,13 @@ const TaskBoardPage = () => {
             onSubmit={handleSubmit}
           />
         )}
+      {dialog?.type === 'screens' && (
+        <ScreenManageDialog
+          projectId={projectId}
+          onClose={() => setDialog(null)}
+          onChanged={reload}
+        />
+      )}
       {dialog?.type === 'delete' && (
         <ConfirmDeleteDialog
           title="タスクを削除"
