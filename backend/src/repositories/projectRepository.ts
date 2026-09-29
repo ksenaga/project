@@ -24,7 +24,10 @@ const columns = [
   taskCount(PROGRESS_STATUSES).as('task_total'),
 ]
 
-type Row = Omit<ProjectBase, 'progress'> & { task_done: number | string; task_total: number | string }
+type Row = Omit<ProjectBase, 'progress'> & {
+  task_done: number | string
+  task_total: number | string
+}
 
 const toProject = ({ task_done, task_total, ...rest }: Row): ProjectBase => ({
   ...rest,

@@ -17,6 +17,7 @@ id	bigint unsigned	v		v	v
 name	varchar(50)			v	
 detail	text			v	
 deadline	datetime(3)			v	
+phase	varchar(20)			v	
 creater	bigint unsigned		users.id	v	
 created_at	datetime(3)			v	
 updater	bigint unsigned		users.id		
@@ -64,6 +65,7 @@ updated_at	datetime(3)
 ・users.role:1=管理者 2=リーダー 3=一般ユーザー
 ・users.password:bcrypt でハッシュ化した値(平文は保存しない)
 ・tasks.status:未対応/対応中/レビュー中/完了/対応中止
+・projects.phase:企画/要件定義/設計/開発/テスト/リリース/保守/終了(作成時は企画)
 ・tasks.user_id:担当者
 ・tasks.screen_id:画面名(そのプロジェクトの screens から選ぶ。API で必須にしている。画面名を必須にする前に作ったタスクは NULL の場合があるため、列は NULL を許可)
 ・screens は物理削除。タスク(削除済みを除く)で使われている画面名は削除できない

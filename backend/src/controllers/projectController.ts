@@ -1,10 +1,11 @@
 import type { Request, Response } from 'express'
 import { badRequest } from '../errors/HttpError'
 import * as projectService from '../services/projectService'
-import type { ProjectRequest } from '../types/project'
+import { PROJECT_PHASES, type ProjectRequest } from '../types/project'
 import {
   parseBody,
   parseDate,
+  parseEnum,
   parseId,
   parseIdArray,
   parseRequiredString,
@@ -48,6 +49,13 @@ export const update = async (req: Request, res: Response) => {
   const id = parseId(req.params.id)
   const input = parseProjectRequest(req.body, { partial: true })
   res.json(await projectService.update(id, input, req.user!))
+}
+
+// PATCH /api/projects/:id/phase
+export const updatePhase = async (req: Request, res: Response) => {
+  const id = parseId(req.params.id)
+  const phase = parseEnum(parseBody(req.body).phase, PROJECT_PHASES)
+  res.json(await projectService.updatePhase(id, phase, req.user!))
 }
 
 // DELETE /api/projects/:id

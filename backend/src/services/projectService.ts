@@ -1,5 +1,5 @@
 import { db, type Conn } from '../db/knex'
-import { badRequest, conflict, notFound } from '../errors/HttpError'
+import { badRequest, conflict, forbidden, notFound } from '../errors/HttpError'
 import * as projectMemberRepository from '../repositories/projectMemberRepository'
 import * as projectRepository from '../repositories/projectRepository'
 import * as taskRepository from '../repositories/taskRepository'
@@ -9,10 +9,11 @@ import type {
   ProjectBase,
   ProjectDetail,
   ProjectInput,
+  ProjectPhase,
   ProjectRequest,
 } from '../types/project'
 import { INCOMPLETE_STATUSES } from '../types/task'
-import type { AuthUser } from '../types/user'
+import { ROLE, type AuthUser } from '../types/user'
 
 const projectNotFound = () => notFound('プロジェクトが存在しません')
 
@@ -94,6 +95,23 @@ export const update = async (
       await projectMemberRepository.add(id, toAdd, user.id, trx)
     }
   })
+  return get(id)
+}
+
+// フェーズの変更は、管理者(全プロジェクト)と、参画しているリーダーのみ
+export const updatePhase = async (
+  id: number,
+  phase: ProjectPhase,
+  user: AuthUser,
+): Promise<ProjectDetail> => {
+  if (!(await projectRepository.findById(id))) throw projectNotFound()
+  const allowed =
+    user.role === ROLE.ADMIN ||
+    (user.role === ROLE.LEADER && (await projectMemberRepository.isMember(id, user.id)))
+  if (!allowed) throw forbidden()
+
+  const count = await projectRepository.updatePhase(id, phase, user.id)
+  if (count === 0) throw projectNotFound()
   return get(id)
 }
 

@@ -25,6 +25,7 @@ import {
   deleteProject,
   fetchProjects,
   updateProject,
+  updateProjectPhase,
   type Project,
   type ProjectInput,
 } from '../api/projects'
@@ -33,6 +34,8 @@ import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import DeadlineChip from '../components/DeadlineChip'
 import MemberAvatars from '../components/MemberAvatars'
 import ProjectFormDialog from '../components/ProjectFormDialog'
+import ProjectPhaseProgress from '../components/ProjectPhaseProgress'
+import type { ProjectPhase } from '../constants/projectPhase'
 import { ROLE } from '../constants/role'
 import { formatDate } from '../utils/date'
 
@@ -100,6 +103,26 @@ const ProjectPage = () => {
     reload()
   }
 
+  // フェーズは管理者と、参画しているリーダーが変更できる
+  const canChangePhase = (project: Project) =>
+    isAdmin ||
+    (user?.role === ROLE.LEADER && project.members.some((member) => member.id === user.id))
+
+  // 先に画面を更新し、失敗したら取り直す
+  const handleChangePhase = async (project: Project, phase: ProjectPhase) => {
+    setProjects(
+      (current) => current?.map((p) => (p.id === project.id ? { ...p, phase } : p)) ?? null,
+    )
+    try {
+      await updateProjectPhase(project.id, phase)
+      setNotice(`「${project.name}」のフェーズを${phase}にしました`)
+    } catch (err) {
+      handleAuthError(err)
+      setNotice((err as Error).message)
+      reload()
+    }
+  }
+
   const handleDelete = async () => {
     if (!deleteTarget) return
     try {
@@ -114,7 +137,7 @@ const ProjectPage = () => {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Stack direction="row" sx={{ alignItems: 'center', mb: 3 }}>
         <Box sx={{ flexGrow: 1 }}>
           <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
@@ -245,13 +268,11 @@ const ProjectPage = () => {
                   )}
                 </Stack>
 
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
-                >
-                  {project.detail}
-                </Typography>
+                <ProjectPhaseProgress
+                  project={project}
+                  canChangePhase={canChangePhase(project)}
+                  onChangePhase={(phase) => handleChangePhase(project, phase)}
+                />
 
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 2 }}>
                   <EventOutlinedIcon fontSize="small" color="action" />

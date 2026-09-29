@@ -10,6 +10,7 @@ API設計
 プロジェクト作成	POST	/api/projects
 プロジェクト詳細	GET	/api/projects/{id}
 プロジェクト編集	PATCH	/api/projects/{id}
+フェーズ変更	PATCH	/api/projects/{id}/phase
 プロジェクト削除	DELETE	/api/projects/{id}
 【プロジェクトメンバー】
 プロジェクト作成・編集の member_ids でまとめて設定する
@@ -78,6 +79,11 @@ Request
 	"detail":"プロジェクト詳細",
 	"deadline":"2027-01-01",
 	"member_ids":[1,2]	※送った場合、メンバーをこの内容に置き換える
+}
+フェーズ変更 PATCH /api/projects/{id}/phase
+※管理者(全プロジェクト)と、参画しているリーダーのみ
+{
+	"phase":"設計"	※必須。企画/要件定義/設計/開発/テスト/リリース/保守/終了
 }
 プロジェクト削除 DELETE /api/projects/{id}
 
@@ -171,12 +177,18 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 【プロジェクト】
 プロジェクト一覧取得 GET /api/projects
 ※期限が近い順
+※progress は進捗度。done は完了のタスク数、total は未対応・対応中・レビュー中・完了のタスク数(対応中止は含まない)
 [
 	{
 		"id":1,
 		"name":"プロジェクト名",
 		"detail":"プロジェクト詳細",
 		"deadline":"2027-01-01",
+		"phase":"企画",
+		"progress":{
+			"done":2,
+			"total":5
+		},
 		"members":[
 			{
 				"id":1,
@@ -189,12 +201,18 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 プロジェクト作成 POST /api/projects
 プロジェクト詳細 GET /api/projects/{id}
 プロジェクト編集 PATCH /api/projects/{id}
-※3つとも同じ形
+フェーズ変更 PATCH /api/projects/{id}/phase
+※4つとも同じ形
 {
 	"id":1,
 	"name":"プロジェクト名",
 	"detail":"プロジェクト詳細",
 	"deadline":"2027-01-01",
+	"phase":"企画",
+	"progress":{
+		"done":2,
+		"total":5
+	},
 	"members":[
 		{
 			"id":1,
@@ -372,6 +390,9 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 プロジェクト編集 PATCH /api/projects/{id}
 成功 200
 失敗 400 or 401 or 403(管理者以外) or 404 or 409(未完了のタスクを担当しているメンバーを外そうとした)
+フェーズ変更 PATCH /api/projects/{id}/phase
+成功 200
+失敗 400 or 401 or 403(管理者・参画しているリーダー以外) or 404
 プロジェクト削除 DELETE /api/projects/{id}
 成功 204
 失敗 401 or 403(管理者以外) or 404

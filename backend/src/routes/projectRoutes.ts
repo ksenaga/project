@@ -14,6 +14,8 @@ router.get('/', projectController.list)
 router.post('/', authorize(ROLE.ADMIN), projectController.create)
 router.get('/:id', projectController.get)
 router.patch('/:id', authorize(ROLE.ADMIN), projectController.update)
+// フェーズは管理者と、参画しているリーダーが変更できる(service で制限)
+router.patch('/:id/phase', projectController.updatePhase)
 router.delete('/:id', authorize(ROLE.ADMIN), projectController.remove)
 
 router.use('/:projectId/tasks', taskRoutes)
