@@ -262,6 +262,7 @@ const UserPage = () => {
         <UserDetailDialog
           userId={dialog.userId}
           canEdit={isAdmin || dialog.userId === user?.id}
+          canOpenProjects={isAdmin || dialog.userId === user?.id}
           onClose={() => setDialog(null)}
           onEdit={(target) => setDialog({ type: 'edit', target })}
         />

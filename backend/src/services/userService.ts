@@ -28,15 +28,10 @@ const getSummary = async (id: number): Promise<UserSummary> => {
   return user
 }
 
-// 管理者は全ユーザー、それ以外は自分だけ
-export const list = async (user: AuthUser): Promise<UserSummary[]> => {
-  if (user.role === ROLE.ADMIN) return userRepository.findAllActive()
-  return [await getSummary(user.id)]
-}
+// 一覧・詳細は全ロールが全ユーザーを見られる
+export const list = async (): Promise<UserSummary[]> => userRepository.findAllActive()
 
-// 管理者は全ユーザー、それ以外は自分だけ見られる
-export const get = async (id: number, user: AuthUser): Promise<UserDetail> => {
-  if (user.role !== ROLE.ADMIN && id !== user.id) throw forbidden()
+export const get = async (id: number): Promise<UserDetail> => {
   const target = await userRepository.findActiveById(id)
   if (!target) throw userNotFound()
   return { ...target, projects: await projectMemberRepository.findProjectsByUserId(id) }

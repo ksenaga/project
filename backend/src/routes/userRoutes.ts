@@ -6,7 +6,7 @@ import { ROLE } from '../types/user'
 
 const router = Router()
 
-// 閲覧・編集は管理者は全員、それ以外は自分だけ(service で制限)。作成・削除は管理者のみ
+// 閲覧は全ロール。編集は管理者は全員、それ以外は自分だけ(service で制限)。作成・削除は管理者のみ
 router.use(authenticate)
 router.get('/', userController.list)
 router.post('/', authorize(ROLE.ADMIN), userController.create)

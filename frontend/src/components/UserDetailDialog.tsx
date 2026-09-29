@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   List,
+  ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
@@ -25,11 +26,13 @@ import UserAvatar from './UserAvatar'
 type Props = {
   userId: number
   canEdit: boolean
+  // プロジェクト名からタスク一覧へ移動できるか(管理者か本人のとき)
+  canOpenProjects: boolean
   onClose: () => void
   onEdit: (user: UserDetail) => void
 }
 
-const UserDetailDialog = ({ userId, canEdit, onClose, onEdit }: Props) => {
+const UserDetailDialog = ({ userId, canEdit, canOpenProjects, onClose, onEdit }: Props) => {
   const [user, setUser] = useState<UserDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -79,22 +82,34 @@ const UserDetailDialog = ({ userId, canEdit, onClose, onEdit }: Props) => {
               ) : (
                 <Paper variant="outlined">
                   <List disablePadding dense>
-                    {user.projects.map((project, i) => (
-                      <ListItemButton
-                        key={project.id}
-                        component={RouterLink}
-                        to={`/projects/${project.id}/tasks`}
-                        divider={i < user.projects.length - 1}
-                      >
-                        <ListItemIcon sx={{ minWidth: 36 }}>
-                          <FolderOutlinedIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={project.name}
-                          slotProps={{ primary: { sx: { wordBreak: 'break-word' } } }}
-                        />
-                      </ListItemButton>
-                    ))}
+                    {user.projects.map((project, i) => {
+                      const content = (
+                        <>
+                          <ListItemIcon sx={{ minWidth: 36 }}>
+                            <FolderOutlinedIcon fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={project.name}
+                            slotProps={{ primary: { sx: { wordBreak: 'break-word' } } }}
+                          />
+                        </>
+                      )
+                      const divider = i < user.projects.length - 1
+                      return canOpenProjects ? (
+                        <ListItemButton
+                          key={project.id}
+                          component={RouterLink}
+                          to={`/projects/${project.id}/tasks`}
+                          divider={divider}
+                        >
+                          {content}
+                        </ListItemButton>
+                      ) : (
+                        <ListItem key={project.id} divider={divider}>
+                          {content}
+                        </ListItem>
+                      )
+                    })}
                   </List>
                 </Paper>
               )}

@@ -26,7 +26,7 @@ export type UserInput = {
   role?: number
 }
 
-// 管理者は全ユーザー、それ以外は自分だけが返る(id 順)
+// 全ユーザー(id 順)
 export const fetchUsers = async () => (await request<{ users: UserSummary[] }>('/users')).users
 
 export const fetchUser = (id: number) => request<UserDetail>(`/users/${id}`)

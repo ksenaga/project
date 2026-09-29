@@ -41,12 +41,12 @@ const parseUserInput = (body: unknown, { partial }: { partial: boolean }) => {
 
 // GET /api/users
 export const list = async (req: Request, res: Response) => {
-  res.json({ users: await userService.list(req.user!) })
+  res.json({ users: await userService.list() })
 }
 
 // GET /api/users/:id
 export const get = async (req: Request, res: Response) => {
-  res.json(await userService.get(parseId(req.params.id), req.user!))
+  res.json(await userService.get(parseId(req.params.id)))
 }
 
 // POST /api/users
