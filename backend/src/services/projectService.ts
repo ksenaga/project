@@ -65,11 +65,26 @@ export const create = async (input: ProjectRequest, user: AuthUser): Promise<Pro
   return get(id)
 }
 
+// 編集(フェーズの変更を含む)は、管理者(全プロジェクト)と、参画しているリーダーのみ
+const ensureCanEdit = async (id: number, user: AuthUser) => {
+  if (!(await projectRepository.findById(id))) throw projectNotFound()
+  const allowed =
+    user.role === ROLE.ADMIN ||
+    (user.role === ROLE.LEADER && (await projectMemberRepository.isMember(id, user.id)))
+  if (!allowed) throw forbidden()
+}
+
 export const update = async (
   id: number,
   input: Partial<ProjectRequest>,
   user: AuthUser,
 ): Promise<ProjectDetail> => {
+  await ensureCanEdit(id, user)
+  // リーダーが自分を外すと編集できなくなるため、外せないようにする
+  if (user.role === ROLE.LEADER && input.member_ids && !input.member_ids.includes(user.id)) {
+    throw badRequest('自分をプロジェクトメンバーから外すことはできません')
+  }
+
   await db.transaction(async (trx) => {
     const count = await projectRepository.update(id, pickProjectInput(input), user.id, trx)
     if (count === 0) throw projectNotFound()
@@ -98,17 +113,12 @@ export const update = async (
   return get(id)
 }
 
-// フェーズの変更は、管理者(全プロジェクト)と、参画しているリーダーのみ
 export const updatePhase = async (
   id: number,
   phase: ProjectPhase,
   user: AuthUser,
 ): Promise<ProjectDetail> => {
-  if (!(await projectRepository.findById(id))) throw projectNotFound()
-  const allowed =
-    user.role === ROLE.ADMIN ||
-    (user.role === ROLE.LEADER && (await projectMemberRepository.isMember(id, user.id)))
-  if (!allowed) throw forbidden()
+  await ensureCanEdit(id, user)
 
   const count = await projectRepository.updatePhase(id, phase, user.id)
   if (count === 0) throw projectNotFound()

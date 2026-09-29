@@ -18,6 +18,7 @@ import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { Link as RouterLink, useNavigate } from 'react-router'
 import { ApiError } from '../api/client'
 import {
@@ -39,7 +40,9 @@ import type { ProjectPhase } from '../constants/projectPhase'
 import { ROLE } from '../constants/role'
 import { formatDate } from '../utils/date'
 
-type FormTarget = { mode: 'create' } | { mode: 'edit'; project: Project }
+// view は管理者以外が詳細を見るとき(閲覧のみ)
+type FormTarget =
+  { mode: 'create' } | { mode: 'edit'; project: Project } | { mode: 'view'; project: Project }
 
 const ProjectPage = () => {
   const { user, setUser } = useAuth()
@@ -103,8 +106,8 @@ const ProjectPage = () => {
     reload()
   }
 
-  // フェーズは管理者と、参画しているリーダーが変更できる
-  const canChangePhase = (project: Project) =>
+  // 編集(フェーズの変更を含む)は管理者と、参画しているリーダーができる。作成・削除は管理者のみ
+  const canEdit = (project: Project) =>
     isAdmin ||
     (user?.role === ROLE.LEADER && project.members.some((member) => member.id === user.id))
 
@@ -242,7 +245,19 @@ const ProjectPage = () => {
                       project.name
                     )}
                   </Typography>
-                  {isAdmin && (
+                  {!canEdit(project) && (
+                    <Box sx={{ mt: -0.5, mr: -1 }} onClick={(e) => e.stopPropagation()}>
+                      <Tooltip title="詳細を見る">
+                        <IconButton
+                          aria-label={`${project.name}の詳細を見る`}
+                          onClick={() => setFormTarget({ mode: 'view', project })}
+                        >
+                          <InfoOutlinedIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  )}
+                  {canEdit(project) && (
                     <Stack
                       direction="row"
                       sx={{ mt: -0.5, mr: -1 }}
@@ -256,21 +271,23 @@ const ProjectPage = () => {
                           <EditOutlinedIcon />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="削除">
-                        <IconButton
-                          aria-label={`${project.name}を削除`}
-                          onClick={() => setDeleteTarget(project)}
-                        >
-                          <DeleteOutlinedIcon />
-                        </IconButton>
-                      </Tooltip>
+                      {isAdmin && (
+                        <Tooltip title="削除">
+                          <IconButton
+                            aria-label={`${project.name}を削除`}
+                            onClick={() => setDeleteTarget(project)}
+                          >
+                            <DeleteOutlinedIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Stack>
                   )}
                 </Stack>
 
                 <ProjectPhaseProgress
                   project={project}
-                  canChangePhase={canChangePhase(project)}
+                  canChangePhase={canEdit(project)}
                   onChangePhase={(phase) => handleChangePhase(project, phase)}
                 />
 
@@ -291,7 +308,8 @@ const ProjectPage = () => {
 
       {formTarget && (
         <ProjectFormDialog
-          project={formTarget.mode === 'edit' ? formTarget.project : undefined}
+          project={formTarget.mode === 'create' ? undefined : formTarget.project}
+          readOnly={formTarget.mode === 'view'}
           onClose={() => setFormTarget(null)}
           onSubmit={handleSubmit}
         />

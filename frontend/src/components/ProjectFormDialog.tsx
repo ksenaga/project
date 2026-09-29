@@ -22,12 +22,16 @@ const NAME_MAX_LENGTH = 50
 type Props = {
   // 渡されたら編集、なければ新規作成
   project?: Project
+  // true なら閲覧のみ(管理者以外が詳細を見るとき)
+  readOnly?: boolean
   onClose: () => void
   onSubmit: (input: ProjectInput) => Promise<void>
 }
 
-const ProjectFormDialog = ({ project, onClose, onSubmit }: Props) => {
+const ProjectFormDialog = ({ project, readOnly = false, onClose, onSubmit }: Props) => {
   const isEdit = project !== undefined
+  // 閲覧のみのときは入力欄を読み取り専用にする(disabled より文字が読みやすい)
+  const readOnlyInput = readOnly ? { readOnly: true } : undefined
   const [name, setName] = useState(project?.name ?? '')
   const [detail, setDetail] = useState(project?.detail ?? '')
   const [deadline, setDeadline] = useState(project?.deadline ?? '')
@@ -39,6 +43,7 @@ const ProjectFormDialog = ({ project, onClose, onSubmit }: Props) => {
 
   // メンバーの候補
   useEffect(() => {
+    if (readOnly) return
     let ignore = false
     fetchUsers()
       .then((data) => !ignore && setUsers(data))
@@ -50,7 +55,7 @@ const ProjectFormDialog = ({ project, onClose, onSubmit }: Props) => {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [readOnly])
 
   const nameError = (touched.name && name.trim() === '') || name.trim().length > NAME_MAX_LENGTH
   const detailError = touched.detail && detail.trim() === ''
@@ -87,30 +92,38 @@ const ProjectFormDialog = ({ project, onClose, onSubmit }: Props) => {
     <Dialog open onClose={saving ? undefined : onClose} fullWidth maxWidth="sm">
       <Box component="form" noValidate onSubmit={handleSubmit}>
         <DialogTitle sx={{ fontWeight: 700 }}>
-          {isEdit ? 'プロジェクトを編集' : 'プロジェクトを作成'}
+          {readOnly ? 'プロジェクトの詳細' : isEdit ? 'プロジェクトを編集' : 'プロジェクトを作成'}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
+            {readOnly && (
+              <Alert severity="info">
+                プロジェクトの編集は、管理者と、参画しているリーダーのみできます
+              </Alert>
+            )}
             <TextField
               label="プロジェクト名"
-              required
-              autoFocus
+              required={!readOnly}
+              autoFocus={!readOnly}
               fullWidth
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, name: true }))}
               error={nameError}
               helperText={
-                nameError && name.trim() === ''
-                  ? 'プロジェクト名を入力してください'
-                  : `${name.trim().length} / ${NAME_MAX_LENGTH}`
+                readOnly
+                  ? ' '
+                  : nameError && name.trim() === ''
+                    ? 'プロジェクト名を入力してください'
+                    : `${name.trim().length} / ${NAME_MAX_LENGTH}`
               }
               disabled={saving}
+              slotProps={{ input: readOnlyInput }}
             />
             <TextField
               label="プロジェクト詳細"
-              required
+              required={!readOnly}
               fullWidth
               multiline
               minRows={4}
@@ -120,11 +133,12 @@ const ProjectFormDialog = ({ project, onClose, onSubmit }: Props) => {
               error={detailError}
               helperText={detailError ? 'プロジェクト詳細を入力してください' : ' '}
               disabled={saving}
+              slotProps={{ input: readOnlyInput }}
             />
             <TextField
               label="期限"
               type="date"
-              required
+              required={!readOnly}
               fullWidth
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
@@ -132,7 +146,7 @@ const ProjectFormDialog = ({ project, onClose, onSubmit }: Props) => {
               error={deadlineError}
               helperText={deadlineError ? '期限を入力してください' : ' '}
               disabled={saving}
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{ inputLabel: { shrink: true }, input: readOnlyInput }}
             />
             <Autocomplete
               multiple
@@ -144,6 +158,7 @@ const ProjectFormDialog = ({ project, onClose, onSubmit }: Props) => {
               isOptionEqualToValue={(option, value) => option.id === value.id}
               filterSelectedOptions
               disableCloseOnSelect
+              readOnly={readOnly}
               disabled={saving}
               noOptionsText="追加できるユーザーがいません"
               loadingText="読み込み中…"
@@ -164,20 +179,36 @@ const ProjectFormDialog = ({ project, onClose, onSubmit }: Props) => {
                 <TextField
                   {...params}
                   label="メンバー"
-                  placeholder={members.length === 0 ? 'クリックしてメンバーを追加' : '追加'}
-                  helperText="クリックで追加・名前で検索できます"
+                  placeholder={
+                    readOnly
+                      ? members.length === 0
+                        ? 'メンバー未設定'
+                        : undefined
+                      : members.length === 0
+                        ? 'クリックしてメンバーを追加'
+                        : '追加'
+                  }
+                  helperText={readOnly ? ' ' : 'クリックで追加・名前で検索できます'}
                 />
               )}
             />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={onClose} disabled={saving} color="inherit">
-            キャンセル
-          </Button>
-          <Button type="submit" variant="contained" loading={saving}>
-            {isEdit ? '保存' : '作成'}
-          </Button>
+          {readOnly ? (
+            <Button onClick={onClose} color="inherit">
+              閉じる
+            </Button>
+          ) : (
+            <>
+              <Button onClick={onClose} disabled={saving} color="inherit">
+                キャンセル
+              </Button>
+              <Button type="submit" variant="contained" loading={saving}>
+                {isEdit ? '保存' : '作成'}
+              </Button>
+            </>
+          )}
         </DialogActions>
       </Box>
     </Dialog>

@@ -8,13 +8,13 @@ import taskRoutes from './taskRoutes'
 
 const router = Router()
 
-// 全ロールが閲覧でき、作成・編集・削除は管理者のみ
+// 全ロールが閲覧できる。作成・削除は管理者のみ
 router.use(authenticate)
 router.get('/', projectController.list)
 router.post('/', authorize(ROLE.ADMIN), projectController.create)
 router.get('/:id', projectController.get)
-router.patch('/:id', authorize(ROLE.ADMIN), projectController.update)
-// フェーズは管理者と、参画しているリーダーが変更できる(service で制限)
+// 編集・フェーズの変更は、管理者と、参画しているリーダー(service で制限)
+router.patch('/:id', projectController.update)
 router.patch('/:id/phase', projectController.updatePhase)
 router.delete('/:id', authorize(ROLE.ADMIN), projectController.remove)
 
