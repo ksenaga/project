@@ -46,6 +46,10 @@ const parseTaskInput = (body: unknown, { partial }: { partial: boolean }) => {
   if (has('status')) input.status = parseEnum(b.status, TASK_STATUSES)
   else if (!partial) input.status = TASK_STATUS.TODO
 
+  // タグ(0個以上。作成時は省略するとタグなし)
+  if (has('tag_ids')) input.tag_ids = parseIdArray(b.tag_ids)
+  else if (!partial) input.tag_ids = []
+
   // 追加したリストへの移動(null は外す)
   if (has('list_id')) input.list_id = b.list_id === null ? null : parseId(b.list_id)
 

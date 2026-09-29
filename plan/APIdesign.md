@@ -35,6 +35,9 @@ API設計
 リスト名・色の変更	PATCH	/api/projects/{project_id}/lists/{id}
 リストの並べ替え	PUT	/api/projects/{project_id}/lists/order
 リスト削除	DELETE	/api/projects/{project_id}/lists/{id}
+【タグ】
+機能	HTTPメソッド	URL
+タグ一覧取得	GET	/api/tags
 【ユーザー一覧】
 機能	HTTPメソッド	URL
 ユーザー一覧取得	GET	/api/users
@@ -111,6 +114,7 @@ Request
 	"title":"タイトル",	※必須。50文字以内
 	"detail":"タスクの説明",	※必須
 	"user_ids":[1,2],	※必須。担当者(プロジェクトメンバー。1人以上)
+	"tag_ids":[1,8],	※任意。タグ(0個以上。省略時はタグなし)
 	"status":"未対応",	※任意。"未対応" か "対応中" のみ(省略時は "未対応")
 	"screen_id":1,	※必須。プロジェクトに登録された画面名
 	"deadline":"2027-01-01",	※必須
@@ -135,7 +139,8 @@ Request
 	"memo":""
 }
 ※追加したリストへ移動するときは "list_id":3 を送る(status と同時には送れない)。status を送ると追加したリストから外れる
-※一般ユーザーが送れるのは status / list_id / modified / reason / git / memo のみ(担当者に含まれるタスクだけ編集できる)
+※一般ユーザーが送れるのは status / list_id / modified / reason / git / memo のみ(タグは変更できない)
+※tag_ids を送るとタグをその内容に置き換える(担当者に含まれるタスクだけ編集できる)
 ※user_ids を送ると担当者をその内容に置き換える(1人以上)
 ※screen_id を送る場合は null 不可(画面名は必須)
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
@@ -266,6 +271,14 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 		"title":"タイトル",
 		"status":"未対応",
 		"deadline":"2027-01-01",
+		"tags":[	※タグ(タグの並び順)
+			{
+				"id":1,
+				"name":"バグ",
+				"color":"#fee2e2",
+				"text_color":"#991b1b"
+			}
+		],
 		"assignees":[	※担当者(ID 順)
 			{
 				"id":1,
@@ -304,6 +317,20 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 }
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
 (なし)
+
+【タグ】
+タグ一覧取得 GET /api/tags
+※並び順。ログインしていれば誰でも取得できる
+[
+	{
+		"id":1,
+		"name":"バグ",
+		"description":"想定と異なる動作・不具合",
+		"color":"#fee2e2",
+		"text_color":"#991b1b"
+	},
+	{}
+]
 
 【ボードのリスト】
 リスト一覧取得 GET /api/projects/{project_id}/lists
@@ -400,6 +427,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 400 不正リクエスト
 ・"リクエストが不正です。"(必須項目がない、形式が違うなど)
 ・"存在しないユーザーが含まれています"(プロジェクトの member_ids)
+・"存在しないタグが含まれています"
 ・"担当者を1人以上選んでください"
 ・"担当者はプロジェクトメンバーから選んでください"
 ・"画面名を選んでください"
@@ -508,6 +536,10 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 画面名削除 DELETE /api/projects/{project_id}/screens/{id}
 成功 204
 失敗 401 or 403 or 404 or 409(タスクで使われている)
+
+タグ一覧取得 GET /api/tags
+成功 200
+失敗 401
 
 ユーザ一覧 GET /api/users
 成功 200

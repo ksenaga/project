@@ -11,16 +11,19 @@ import {
   DialogTitle,
   Link,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { fetchTask, type Task } from '../../api/tasks'
 import type { BoardList } from '../../api/boardLists'
+import type { Tag } from '../../api/tags'
 import { CUSTOM_LIST_COLOR, TASK_STATUS, TASK_STATUS_COLOR } from '../../constants/taskStatus'
 import type { LoginUser } from '../../pages/LoginPage'
 import { formatDate } from '../../utils/date'
 import { canDeleteTask, canEditTask } from '../../utils/taskPermission'
 import LinkifiedText from '../LinkifiedText'
+import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
 
 type Props = {
@@ -33,6 +36,8 @@ type Props = {
   onCopy: (task: Task) => void
   // 追加したリストに入っているタスクは、ステータスの代わりにリスト名を表示する
   lists: BoardList[]
+  // タグの意味を表示するため
+  tags: Tag[]
 }
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
@@ -78,6 +83,7 @@ const TaskDetailDialog = ({
   onDelete,
   onCopy,
   lists,
+  tags,
 }: Props) => {
   const [task, setTask] = useState<Task | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -169,6 +175,26 @@ const TaskDetailDialog = ({
                     </Stack>
                   ))}
                 </Stack>
+              </Field>
+              <Field label="タグ">
+                {task.tags.length === 0 ? (
+                  <Typography variant="body2" color="text.disabled">
+                    未入力
+                  </Typography>
+                ) : (
+                  <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1 }}>
+                    {task.tags.map((tag) => (
+                      <Tooltip
+                        key={tag.id}
+                        title={tags.find((t) => t.id === tag.id)?.description ?? ''}
+                      >
+                        <span>
+                          <TagLabel tag={tag} size="medium" />
+                        </span>
+                      </Tooltip>
+                    ))}
+                  </Stack>
+                )}
               </Field>
               <Field label="説明">
                 <Text value={task.detail} linkify />

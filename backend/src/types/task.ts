@@ -1,5 +1,6 @@
 import type { Member } from './project'
 import type { ScreenRef } from './screen'
+import type { TagRef } from './tag'
 
 export const TASK_STATUS = {
   TODO: '未対応',
@@ -60,6 +61,7 @@ export type TaskSummary = {
   status: TaskStatus
   deadline: string // "YYYY-MM-DD"
   assignees: Member[] // 担当者(1人以上。ID 順)
+  tags: TagRef[] // タグ(タグの並び順)
   screen: ScreenRef | null
   list_id: number | null // 追加したリストに入っているときのリスト。既存の5つのときは null
 }
@@ -78,6 +80,7 @@ export type TaskInput = {
   title: string
   detail: string
   user_ids: number[]
+  tag_ids: number[] // タグ(0個以上)
   status: TaskStatus
   deadline: string
   screen_id: number // 必須(以前のタスクは画面名なし(NULL)の場合がある)
@@ -90,7 +93,8 @@ export type TaskInput = {
 }
 
 // tasks テーブルに書き込む値(担当者は task_assignees に書き込む)
-export type TaskFields = Omit<TaskInput, 'user_ids'>
+// (担当者は task_assignees、タグは task_tags に書き込む)
+export type TaskFields = Omit<TaskInput, 'user_ids' | 'tag_ids'>
 
 // 一覧の絞り込み条件(指定したものすべてに当てはまるタスクを返す)
 export type TaskFilter = {

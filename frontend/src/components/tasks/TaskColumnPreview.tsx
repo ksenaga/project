@@ -1,11 +1,12 @@
 import { Box, Stack, Typography } from '@mui/material'
 import type { BoardList } from '../../api/boardLists'
+import { LIST_WIDTH } from '../../constants/board'
 
 // リストをドラッグしている間、指に付いてくる見た目(DragOverlay で使う)
 const TaskColumnPreview = ({ list, count }: { list: BoardList; count: number }) => (
   <Box
     sx={{
-      width: 256,
+      width: LIST_WIDTH,
       bgcolor: list.color,
       borderRadius: 3,
       p: 1,

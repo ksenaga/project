@@ -69,6 +69,31 @@ created_at	datetime(3)			v
 updater	bigint unsigned		users.id		
 updated_at	datetime(3)				
 
+tags(タグ)(nameでユニーク制約)(マイグレーションで8つ登録。テーブル・列にDBのコメントあり)
+列名	データ・タイプ	PK	FK	Not null	オートインクリメント
+id	bigint unsigned	v		v	v
+name	varchar(20)			v	
+description	varchar(255)			v	
+color	varchar(7)			v	
+text_color	varchar(7)			v	
+position	int			v	
+
+task_tags(タスクに付けたタグ)(task_idとtag_idで複合主キー)(物理削除)
+列名	データ・タイプ	PK	FK	Not null	オートインクリメント
+task_id	bigint unsigned	v	tasks.id	v	
+tag_id	bigint unsigned	v	tags.id	v	
+
+タグの種類(tags.description に意味を入れている)
+タグ	意味
+バグ	想定と異なる動作・不具合
+修正	既存機能の修正・変更
+要望	ユーザーからの機能追加・改善要望
+改善	既存機能の使いやすさ・性能などの改善
+新規	新しい機能の追加
+調査	原因や仕様などを調査するチケット
+問い合わせ	仕様確認・操作方法などの問い合わせ
+緊急	緊急対応が必要なもの
+
 screens(画面名管理)(project_idとnameで複合ユニーク制約)(物理削除)
 列名	データ・タイプ	PK	FK	Not null	オートインクリメント
 id	bigint unsigned	v		v	v
@@ -96,6 +121,9 @@ updated_at	datetime(3)
 ・project_member は物理削除(ユーザー削除時は、そのユーザーの行も削除する)
 ・以前の tasks.screen(自由入力の文字列)は、マイグレーション(20260929000001_create_screens)で screens に移し、tasks.screen_id に置き換えた
 
+DBのコメント
+・tags / task_tags はテーブルと列に DB のコメントを付けている(それ以外のテーブルは未設定)
+
 テーブルの管理
 ・テーブルは Knex のマイグレーションで作成・変更する(backend/db/migrations)
 ・テーブルごとに1ファイル。変更するときは既存のファイルを書き換えず、新しいマイグレーションを追加する
@@ -107,6 +135,7 @@ users
  │
  ├──< projects ──< tasks
  │      │           ├──< task_assignees >── users(担当者)
+ │      │           ├──< task_tags >── tags(タグ)
  │      │           └── screens(画面名)
  │      ├──< screens
  │      ├──< board_lists ──< tasks(list_id)

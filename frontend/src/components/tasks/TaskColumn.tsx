@@ -22,6 +22,7 @@ import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { BoardList } from '../../api/boardLists'
+import { LIST_WIDTH } from '../../constants/board'
 import { listDndId } from '../../utils/taskPermission'
 import ListColorPicker from './ListColorPicker'
 
@@ -106,9 +107,9 @@ const TaskColumn = ({
       aria-label={`${list.name}（${count}件）`}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       sx={{
-        // 画面幅に合わせて伸縮し、狭いときはボードが横スクロールする
-        flex: '1 0 240px',
-        maxWidth: 340,
+        // 幅は固定(タスク名の長さで変わらない)。入りきらないときはボードが横スクロールする
+        flex: `0 0 ${LIST_WIDTH}px`,
+        width: LIST_WIDTH,
         display: 'flex',
         flexDirection: 'column',
         maxHeight: '100%',

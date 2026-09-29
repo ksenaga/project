@@ -2,6 +2,7 @@ import { useState, type SubmitEvent } from 'react'
 import { Box, Button, IconButton, Stack, TextField, Tooltip } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
+import { LIST_WIDTH } from '../../constants/board'
 import { DEFAULT_LIST_COLOR } from '../../constants/listColor'
 import ListColorPicker from './ListColorPicker'
 
@@ -31,8 +32,9 @@ const AddListColumn = ({ onAdd }: Props) => {
   return (
     <Box
       sx={{
-        flex: '1 0 240px',
-        maxWidth: 340,
+        // 幅は固定(タスク名の長さで変わらない)。入りきらないときはボードが横スクロールする
+        flex: `0 0 ${LIST_WIDTH}px`,
+        width: LIST_WIDTH,
         // 入力中は、選んだ色で仕上がりが分かるようにする
         bgcolor: name === null ? 'rgba(238, 242, 247, 0.6)' : color,
         borderRadius: 3,

@@ -4,6 +4,7 @@ import {
   Autocomplete,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -11,14 +12,17 @@ import {
   MenuItem,
   Stack,
   TextField,
+  Typography,
 } from '@mui/material'
 import type { BoardList } from '../../api/boardLists'
 import type { Screen } from '../../api/screens'
+import type { Tag, TagRef } from '../../api/tags'
 import type { Task, TaskInput } from '../../api/tasks'
 import type { Member } from '../../api/users'
 import { CREATABLE_STATUSES, type TaskStatus } from '../../constants/taskStatus'
 import type { LoginUser } from '../../pages/LoginPage'
 import { isLimitedEditor, settableStatuses } from '../../utils/taskPermission'
+import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
 
 const TITLE_MAX_LENGTH = 50
@@ -30,6 +34,8 @@ type Props = {
   members: Member[]
   // 画面名の候補(プロジェクトに登録されている画面名)
   screens: Screen[]
+  // タグの候補
+  tags: Tag[]
   // ボードのリスト(編集では、追加したリストも選べる)
   lists: BoardList[]
   // 渡されたら編集、なければ新規作成
@@ -49,6 +55,7 @@ const TaskFormDialog = ({
   members,
   screens,
   lists,
+  tags,
   task,
   copyFrom,
   defaultStatus,
@@ -68,6 +75,8 @@ const TaskFormDialog = ({
   const [title, setTitle] = useState(source?.title ?? '')
   const [detail, setDetail] = useState(source?.detail ?? '')
   // 担当者(複数)。新規作成では、自分がメンバーなら自分を初期値にする
+  // タグ(0個以上)。コピーでも引き継ぐ
+  const [selectedTags, setSelectedTags] = useState<TagRef[]>(source?.tags ?? [])
   const [assignees, setAssignees] = useState<Member[]>(
     task?.assignees ??
       (copyAssignees && copyAssignees.length > 0 ? copyAssignees : undefined) ??
@@ -141,6 +150,7 @@ const TaskFormDialog = ({
           title: title.trim(),
           detail: detail.trim(),
           user_ids: assignees.map((a) => a.id),
+          tag_ids: selectedTags.map((t) => t.id),
           deadline,
           screen_id: screenId as number,
         }
@@ -301,6 +311,62 @@ const TaskFormDialog = ({
                   helperText={
                     show('assignees') ?? (limited ? ' ' : 'プロジェクトメンバーから複数人選べます')
                   }
+                />
+              )}
+            />
+            {/* タグ(複数選択) */}
+            <Autocomplete
+              multiple
+              options={tags as TagRef[]}
+              value={selectedTags}
+              onChange={(_e, value) => setSelectedTags(value)}
+              getOptionLabel={(option) => option.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              filterSelectedOptions
+              disableCloseOnSelect
+              readOnly={limited}
+              disabled={saving}
+              renderOption={({ key, ...props }, option) => (
+                <li key={key} {...props}>
+                  <Box sx={{ width: 84, flexShrink: 0 }}>
+                    <TagLabel tag={option} size="medium" />
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {tags.find((tag) => tag.id === option.id)?.description}
+                  </Typography>
+                </li>
+              )}
+              renderValue={(value, getItemProps) =>
+                value.map((option, index) => {
+                  const { key, ...itemProps } = getItemProps({ index })
+                  return (
+                    <Chip
+                      key={key}
+                      {...itemProps}
+                      label={option.name}
+                      size="small"
+                      sx={{
+                        bgcolor: option.color,
+                        color: option.text_color,
+                        fontWeight: 700,
+                        '& .MuiChip-deleteIcon': { color: option.text_color, opacity: 0.7 },
+                      }}
+                    />
+                  )
+                })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="タグ"
+                  placeholder={
+                    limited
+                      ? undefined
+                      : selectedTags.length === 0
+                        ? 'クリックしてタグを追加'
+                        : '追加'
+                  }
+                  helperText={limited ? ' ' : '複数選べます'}
                 />
               )}
             />

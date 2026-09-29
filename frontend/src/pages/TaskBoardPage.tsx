@@ -47,6 +47,7 @@ import {
 import { ApiError } from '../api/client'
 import { fetchProject, type ProjectDetail } from '../api/projects'
 import { fetchScreens, type Screen } from '../api/screens'
+import { fetchTags, type Tag } from '../api/tags'
 import {
   createTask,
   deleteTask,
@@ -70,6 +71,7 @@ import TaskColumnPreview from '../components/tasks/TaskColumnPreview'
 import TaskDetailDialog from '../components/tasks/TaskDetailDialog'
 import TaskFilterBar from '../components/tasks/TaskFilterBar'
 import TaskFormDialog from '../components/tasks/TaskFormDialog'
+import { CARD_WIDTH } from '../constants/board'
 import { ROLE } from '../constants/role'
 import {
   CREATABLE_STATUSES,
@@ -123,6 +125,7 @@ const TaskBoardPage = () => {
   const [tasks, setTasks] = useState<TaskSummary[] | null>(null)
   const [screens, setScreens] = useState<Screen[]>([])
   const [lists, setLists] = useState<BoardList[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
   const [filter, setFilter] = useState<TaskFilter>(EMPTY_TASK_FILTER)
   // 文字検索は入力が止まってから実行する
   const q = useDebouncedValue(filter.q, 300)
@@ -152,6 +155,17 @@ const TaskBoardPage = () => {
   // 値を増やすとプロジェクト・画面名・タスクを取り直す
   const [reloadKey, setReloadKey] = useState(0)
   const reload = () => setReloadKey((k) => k + 1)
+
+  // タグの一覧(全プロジェクト共通)
+  useEffect(() => {
+    let ignore = false
+    fetchTags()
+      .then((data) => !ignore && setTags(data))
+      .catch(() => {})
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   useEffect(() => {
     let ignore = false
@@ -497,7 +511,7 @@ const TaskBoardPage = () => {
 
           <DragOverlay dropAnimation={null}>
             {activeTask && (
-              <Box sx={{ width: 256, cursor: 'grabbing' }}>
+              <Box sx={{ width: CARD_WIDTH, cursor: 'grabbing' }}>
                 <TaskCardContent task={activeTask} lifted />
               </Box>
             )}
@@ -518,6 +532,7 @@ const TaskBoardPage = () => {
           projectId={projectId}
           taskId={dialog.taskId}
           lists={lists}
+          tags={tags}
           onClose={() => setDialog(null)}
           onEdit={(task) => setDialog({ type: 'edit', task })}
           onDelete={(task) => setDialog({ type: 'delete', task })}
@@ -531,6 +546,7 @@ const TaskBoardPage = () => {
             members={project.members}
             screens={screens}
             lists={lists}
+            tags={tags}
             task={dialog.type === 'edit' ? dialog.task : undefined}
             copyFrom={dialog.type === 'copy' ? dialog.task : undefined}
             defaultStatus={dialog.type === 'create' ? dialog.status : TASK_STATUS.TODO}

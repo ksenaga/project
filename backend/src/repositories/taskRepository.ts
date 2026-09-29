@@ -10,6 +10,7 @@ import {
   type TaskSummary,
 } from '../types/task'
 import type { Member } from '../types/project'
+import type { TagRef } from '../types/tag'
 
 const summaryColumns = [
   't.id',
@@ -43,12 +44,29 @@ const findAssigneesByTaskIds = async (taskIds: number[]): Promise<Map<number, Me
   return map
 }
 
-// 担当者と画面名を付けて API の形にする
+// 複数タスクのタグをまとめて取得する(タグの並び順)
+const findTagsByTaskIds = async (taskIds: number[]): Promise<Map<number, TagRef[]>> => {
+  const map = new Map<number, TagRef[]>()
+  if (taskIds.length === 0) return map
+  const rows: (TagRef & { task_id: number })[] = await db('task_tags as tt')
+    .join('tags as g', 'g.id', 'tt.tag_id')
+    .select('tt.task_id', 'g.id', 'g.name', 'g.color', 'g.text_color')
+    .whereIn('tt.task_id', taskIds)
+    .orderBy('g.position')
+  for (const { task_id, ...tag } of rows) {
+    map.set(task_id, [...(map.get(task_id) ?? []), tag])
+  }
+  return map
+}
+
+// 担当者・タグ・画面名を付けて API の形にする
 const toTasks = async <T extends Row>(rows: T[]) => {
-  const assignees = await findAssigneesByTaskIds(rows.map((row) => row.id))
+  const ids = rows.map((row) => row.id)
+  const [assignees, tags] = await Promise.all([findAssigneesByTaskIds(ids), findTagsByTaskIds(ids)])
   return rows.map(({ screen_id, screen_name, ...rest }) => ({
     ...rest,
     assignees: assignees.get(rest.id) ?? [],
+    tags: tags.get(rest.id) ?? [],
     screen: screen_id === null ? null : { id: screen_id, name: screen_name! },
   }))
 }
@@ -136,6 +154,14 @@ export const replaceAssignees = async (taskId: number, userIds: number[], conn: 
     await conn('task_assignees').insert(
       userIds.map((userId) => ({ task_id: taskId, user_id: userId })),
     )
+  }
+}
+
+// タグを指定したものに置き換える
+export const replaceTags = async (taskId: number, tagIds: number[], conn: Conn = db) => {
+  await conn('task_tags').where({ task_id: taskId }).delete()
+  if (tagIds.length > 0) {
+    await conn('task_tags').insert(tagIds.map((tagId) => ({ task_id: taskId, tag_id: tagId })))
   }
 }
 

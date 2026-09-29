@@ -1,6 +1,7 @@
 import { db } from '../db/knex'
 import { badRequest, conflict, forbidden, notFound } from '../errors/HttpError'
 import * as projectMemberRepository from '../repositories/projectMemberRepository'
+import * as tagRepository from '../repositories/tagRepository'
 import * as taskRepository from '../repositories/taskRepository'
 import {
   CREATABLE_STATUSES,
@@ -29,9 +30,18 @@ const ensureAssigneesAreMembers = async (projectId: number, userIds: number[]) =
   }
 }
 
-// 担当者(user_ids)と、tasks テーブルに書き込む値に分ける
-const splitInput = <T extends Partial<TaskInput>>({ user_ids, ...fields }: T) => ({
+// タグは用意されたものから選ぶ
+const ensureTagsExist = async (tagIds: number[] | undefined) => {
+  if (!tagIds || tagIds.length === 0) return
+  if ((await tagRepository.countByIds(tagIds)) !== tagIds.length) {
+    throw badRequest('存在しないタグが含まれています')
+  }
+}
+
+// 担当者(user_ids)・タグ(tag_ids)と、tasks テーブルに書き込む値に分ける
+const splitInput = <T extends Partial<TaskInput>>({ user_ids, tag_ids, ...fields }: T) => ({
   userIds: user_ids,
+  tagIds: tag_ids,
   fields: fields as Partial<TaskFields>,
 })
 
@@ -74,11 +84,13 @@ export const create = async (
   }
   await ensureAssigneesAreMembers(projectId, input.user_ids)
   await ensureScreenInProject(projectId, input.screen_id)
+  await ensureTagsExist(input.tag_ids)
 
   const { fields } = splitInput(input)
   const id = await db.transaction(async (trx) => {
     const taskId = await taskRepository.create(projectId, fields as TaskFields, user.id, trx)
     await taskRepository.replaceAssignees(taskId, input.user_ids, trx)
+    await taskRepository.replaceTags(taskId, input.tag_ids, trx)
     return taskId
   })
   return getTask(projectId, id)
@@ -132,11 +144,14 @@ export const update = async (
   }
   await ensureScreenInProject(projectId, input.screen_id)
 
-  const { userIds, fields } = splitInput(input)
+  await ensureTagsExist(input.tag_ids)
+
+  const { userIds, tagIds, fields } = splitInput(input)
   await db.transaction(async (trx) => {
     const count = await taskRepository.update(projectId, id, fields, user.id, trx)
     if (count === 0) throw taskNotFound()
     if (userIds !== undefined) await taskRepository.replaceAssignees(id, userIds, trx)
+    if (tagIds !== undefined) await taskRepository.replaceTags(id, tagIds, trx)
   })
   return getTask(projectId, id)
 }

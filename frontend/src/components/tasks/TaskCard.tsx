@@ -4,10 +4,16 @@ import { useDraggable } from '@dnd-kit/core'
 import type { TaskSummary } from '../../api/tasks'
 import { DEADLINE_COLOR_STYLE, deadlineColorOf } from '../../constants/deadlineColor'
 import { formatDate } from '../../utils/date'
+import MarqueeText from '../MarqueeText'
+import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
 
 // 担当者のアイコンは3人まで並べ、それ以上は「+N」で表示する
 const MAX_AVATARS = 3
+// タイトルの右端に出すタグは2つまで。それ以上は「+N」で表示する
+const MAX_TAGS = 2
+// 「緊急」は見落とさないよう、カードでは必ず先頭に出す
+const URGENT_TAG_NAME = '緊急'
 
 // カードの見た目(ドラッグ中に指に付いてくる DragOverlay でも使う)
 export const TaskCardContent = ({
@@ -21,6 +27,10 @@ export const TaskCardContent = ({
   const color = deadlineColorOf(task)
   const colorStyle = color && DEADLINE_COLOR_STYLE[color]
   const assigneeNames = task.assignees.map((assignee) => assignee.name).join('、')
+  const tags = [
+    ...task.tags.filter((tag) => tag.name === URGENT_TAG_NAME),
+    ...task.tags.filter((tag) => tag.name !== URGENT_TAG_NAME),
+  ]
 
   return (
     <Paper
@@ -45,9 +55,27 @@ export const TaskCardContent = ({
           {task.screen.name}
         </Typography>
       )}
-      <Typography variant="body2" sx={{ fontWeight: 600, wordBreak: 'break-word', mb: 1 }}>
-        {task.title}
-      </Typography>
+      {/* タイトル(長いときは横に流れる)と、右端にタグ */}
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mb: 1 }}>
+        <MarqueeText
+          text={task.title}
+          sx={{ flexGrow: 1, fontSize: '0.875rem', fontWeight: 600, lineHeight: 1.5 }}
+        />
+        {tags.length > 0 && (
+          <Tooltip title={tags.map((tag) => tag.name).join('・')}>
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexShrink: 0 }}>
+              {tags.slice(0, MAX_TAGS).map((tag) => (
+                <TagLabel key={tag.id} tag={tag} />
+              ))}
+              {tags.length > MAX_TAGS && (
+                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                  +{tags.length - MAX_TAGS}
+                </Typography>
+              )}
+            </Stack>
+          </Tooltip>
+        )}
+      </Stack>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
         <Box
           sx={{
@@ -126,7 +154,7 @@ const TaskCard = ({ task, draggable, onOpen }: Props) => {
       aria-roledescription={draggable ? roleDescription : undefined}
       aria-describedby={draggable ? describedBy : undefined}
       {...listeners}
-      aria-label={`${task.title}（担当: ${task.assignees.map((a) => a.name).join('、')}、期限: ${formatDate(task.deadline)}）`}
+      aria-label={`${task.title}（${task.tags.length > 0 ? `タグ: ${task.tags.map((t) => t.name).join('・')}、` : ''}担当: ${task.assignees.map((a) => a.name).join('、')}、期限: ${formatDate(task.deadline)}）`}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onOpen()
