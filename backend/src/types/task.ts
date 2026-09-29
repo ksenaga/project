@@ -30,6 +30,16 @@ export const MEMBER_SETTABLE_STATUSES: readonly TaskStatus[] = [
   TASK_STATUS.REVIEW,
 ]
 
+// 期限の色を付けないステータス(色での絞り込みの対象外)
+export const CLOSED_STATUSES: readonly TaskStatus[] = [TASK_STATUS.DONE, TASK_STATUS.CANCELED]
+
+// 期限の色。今日から期限までの日数で決める
+//   red: 7日以内(期限切れを含む) / yellow: 8〜14日 / green(黄緑): 15日以上
+export const DEADLINE_COLORS = ['red', 'yellow', 'green'] as const
+export type DeadlineColor = (typeof DEADLINE_COLORS)[number]
+export const DEADLINE_RED_MAX_DAYS = 7
+export const DEADLINE_YELLOW_MAX_DAYS = 14
+
 // 一般ユーザーが編集できる項目
 export const MEMBER_EDITABLE_FIELDS = ['status', 'modified', 'reason', 'git', 'memo'] as const
 
@@ -73,4 +83,9 @@ export type TaskFilter = {
   assigneeId?: number
   // null は「画面名が未設定」
   screenId?: number | null
+  // 期限の範囲("YYYY-MM-DD"。どちらか片方だけでもよい)
+  deadlineFrom?: string
+  deadlineTo?: string
+  // 期限の色(完了・対応中止のタスクは含まない)
+  deadlineColor?: DeadlineColor
 }

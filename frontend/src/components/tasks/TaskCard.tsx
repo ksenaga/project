@@ -2,8 +2,8 @@ import { Box, Paper, Stack, Tooltip, Typography } from '@mui/material'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import { useDraggable } from '@dnd-kit/core'
 import type { TaskSummary } from '../../api/tasks'
-import { CLOSED_STATUSES } from '../../constants/taskStatus'
-import { daysUntil, formatDate } from '../../utils/date'
+import { DEADLINE_COLOR_STYLE, deadlineColorOf } from '../../constants/deadlineColor'
+import { formatDate } from '../../utils/date'
 import UserAvatar from '../UserAvatar'
 
 // カードの見た目(ドラッグ中に指に付いてくる DragOverlay でも使う)
@@ -14,7 +14,9 @@ export const TaskCardContent = ({
   task: TaskSummary
   lifted?: boolean
 }) => {
-  const overdue = !CLOSED_STATUSES.includes(task.status) && daysUntil(task.deadline) < 0
+  // 7日以内は赤、8〜14日は黄色、15日以上は黄緑。完了・対応中止は色を付けない
+  const color = deadlineColorOf(task)
+  const colorStyle = color && DEADLINE_COLOR_STYLE[color]
 
   return (
     <Paper
@@ -52,8 +54,9 @@ export const TaskCardContent = ({
             py: 0.25,
             borderRadius: 1,
             fontSize: 12,
-            ...(overdue
-              ? { bgcolor: 'error.main', color: 'error.contrastText' }
+            fontWeight: colorStyle ? 600 : undefined,
+            ...(colorStyle
+              ? { bgcolor: colorStyle.bg, color: colorStyle.text }
               : { color: 'text.secondary' }),
           }}
         >

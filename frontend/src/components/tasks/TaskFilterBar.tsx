@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   IconButton,
   InputAdornment,
@@ -9,9 +10,13 @@ import {
 } from '@mui/material'
 import ClearIcon from '@mui/icons-material/Clear'
 import SearchIcon from '@mui/icons-material/Search'
-import TuneIcon from '@mui/icons-material/Tune'
 import type { Screen } from '../../api/screens'
-import { EMPTY_TASK_FILTER, type TaskFilter } from '../../api/tasks'
+import { EMPTY_TASK_FILTER, isFiltering, type TaskFilter } from '../../api/tasks'
+import {
+  DEADLINE_COLOR_STYLE,
+  DEADLINE_COLORS,
+  type DeadlineColor,
+} from '../../constants/deadlineColor'
 import type { Member } from '../../api/users'
 import UserAvatar from '../UserAvatar'
 
@@ -22,19 +27,13 @@ type Props = {
   screens: Screen[]
   // 絞り込み中の表示件数(絞り込んでいないときは null)
   resultCount: number | null
-  onManageScreens: () => void
 }
 
-// タスク一覧の絞り込み(文字・担当者・画面名。すべての条件に当てはまるものを表示)
-const TaskFilterBar = ({
-  filter,
-  onChange,
-  members,
-  screens,
-  resultCount,
-  onManageScreens,
-}: Props) => {
-  const active = filter.q !== '' || filter.assigneeId !== '' || filter.screenId !== ''
+const fieldSx = { bgcolor: 'background.paper' }
+
+// タスク一覧の絞り込み(文字・担当者・画面名・期限・期限の色。すべての条件に当てはまるものを表示)
+const TaskFilterBar = ({ filter, onChange, members, screens, resultCount }: Props) => {
+  const active = isFiltering(filter)
 
   return (
     <Stack
@@ -50,7 +49,7 @@ const TaskFilterBar = ({
         placeholder="タイトル・説明・メモなどで検索"
         value={filter.q}
         onChange={(e) => onChange({ ...filter, q: e.target.value })}
-        sx={{ width: 320, bgcolor: 'background.paper' }}
+        sx={{ width: 240, bgcolor: 'background.paper' }}
         slotProps={{
           htmlInput: { 'aria-label': '文字で検索', maxLength: 100 },
           input: {
@@ -82,7 +81,7 @@ const TaskFilterBar = ({
         onChange={(e) =>
           onChange({ ...filter, assigneeId: e.target.value === '' ? '' : Number(e.target.value) })
         }
-        sx={{ width: 200, bgcolor: 'background.paper' }}
+        sx={{ width: 180, bgcolor: 'background.paper' }}
       >
         <MenuItem value="">すべて</MenuItem>
         {members.map((m) => (
@@ -106,7 +105,7 @@ const TaskFilterBar = ({
             screenId: value === '' ? '' : Number(value),
           })
         }}
-        sx={{ width: 200, bgcolor: 'background.paper' }}
+        sx={{ width: 180, bgcolor: 'background.paper' }}
       >
         <MenuItem value="">すべて</MenuItem>
         {screens.map((s) => (
@@ -114,6 +113,69 @@ const TaskFilterBar = ({
             {s.name}
           </MenuItem>
         ))}
+      </TextField>
+      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+        <TextField
+          type="date"
+          size="small"
+          label="期限（から）"
+          value={filter.deadlineFrom}
+          onChange={(e) => onChange({ ...filter, deadlineFrom: e.target.value })}
+          sx={{ ...fieldSx, width: 160 }}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { max: filter.deadlineTo || undefined },
+          }}
+        />
+        <Typography color="text.secondary" aria-hidden>
+          〜
+        </Typography>
+        <TextField
+          type="date"
+          size="small"
+          label="期限（まで）"
+          value={filter.deadlineTo}
+          onChange={(e) => onChange({ ...filter, deadlineTo: e.target.value })}
+          sx={{ ...fieldSx, width: 160 }}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { min: filter.deadlineFrom || undefined },
+          }}
+        />
+      </Stack>
+      <TextField
+        select
+        size="small"
+        label="期限の色"
+        value={filter.deadlineColor}
+        onChange={(e) =>
+          onChange({ ...filter, deadlineColor: e.target.value as DeadlineColor | '' })
+        }
+        sx={{ ...fieldSx, width: 190 }}
+      >
+        <MenuItem value="">すべて</MenuItem>
+        {DEADLINE_COLORS.map((color) => {
+          const style = DEADLINE_COLOR_STYLE[color]
+          return (
+            <MenuItem key={color} value={color}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    flexShrink: 0,
+                    borderRadius: '50%',
+                    bgcolor: style.bg,
+                  }}
+                  aria-hidden
+                />
+                <span>
+                  {style.label}（{style.description}）
+                </span>
+              </Stack>
+            </MenuItem>
+          )
+        })}
       </TextField>
       {active && (
         <>
@@ -127,15 +189,6 @@ const TaskFilterBar = ({
           )}
         </>
       )}
-      <Button
-        variant="outlined"
-        size="small"
-        startIcon={<TuneIcon />}
-        onClick={onManageScreens}
-        sx={{ ml: 'auto', bgcolor: 'background.paper' }}
-      >
-        画面名の管理
-      </Button>
     </Stack>
   )
 }

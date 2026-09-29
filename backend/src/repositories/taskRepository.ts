@@ -1,5 +1,14 @@
 import { db, type Conn } from '../db/knex'
-import type { Task, TaskFilter, TaskInput, TaskStatus, TaskSummary } from '../types/task'
+import {
+  CLOSED_STATUSES,
+  DEADLINE_RED_MAX_DAYS,
+  DEADLINE_YELLOW_MAX_DAYS,
+  type Task,
+  type TaskFilter,
+  type TaskInput,
+  type TaskStatus,
+  type TaskSummary,
+} from '../types/task'
 
 const summaryColumns = [
   't.id',
@@ -64,6 +73,20 @@ export const findByProject = async (
   if (filter.assigneeId !== undefined) query.where('t.user_id', filter.assigneeId)
   if (filter.screenId === null) query.whereNull('t.screen_id')
   else if (filter.screenId !== undefined) query.where('t.screen_id', filter.screenId)
+  if (filter.deadlineFrom) query.where('t.deadline', '>=', filter.deadlineFrom)
+  if (filter.deadlineTo) query.where('t.deadline', '<=', filter.deadlineTo)
+  if (filter.deadlineColor) {
+    // 今日から期限までの日数(DB のタイムゾーンは日本時間)
+    const days = 'DATEDIFF(t.deadline, CURDATE())'
+    query.whereNotIn('t.status', CLOSED_STATUSES)
+    if (filter.deadlineColor === 'red') query.whereRaw(`${days} <= ?`, [DEADLINE_RED_MAX_DAYS])
+    else if (filter.deadlineColor === 'yellow') {
+      query.whereRaw(`${days} BETWEEN ? AND ?`, [
+        DEADLINE_RED_MAX_DAYS + 1,
+        DEADLINE_YELLOW_MAX_DAYS,
+      ])
+    } else query.whereRaw(`${days} > ?`, [DEADLINE_YELLOW_MAX_DAYS])
+  }
 
   const rows: Row[] = await query
   return rows.map(toTask)

@@ -12,6 +12,7 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
+import TuneIcon from '@mui/icons-material/Tune'
 import {
   DndContext,
   DragOverlay,
@@ -32,6 +33,7 @@ import {
   deleteTask,
   EMPTY_TASK_FILTER,
   fetchTasks,
+  isFiltering,
   updateTask,
   type Task,
   type TaskFilter,
@@ -90,8 +92,9 @@ const TaskBoardPage = () => {
   const [filter, setFilter] = useState<TaskFilter>(EMPTY_TASK_FILTER)
   // 文字検索は入力が止まってから実行する
   const q = useDebouncedValue(filter.q, 300)
-  const { assigneeId, screenId } = filter
-  const filtering = q.trim() !== '' || assigneeId !== '' || screenId !== ''
+  const { assigneeId, screenId, deadlineFrom, deadlineTo, deadlineColor } = filter
+  const appliedFilter = { q, assigneeId, screenId, deadlineFrom, deadlineTo, deadlineColor }
+  const filtering = isFiltering(appliedFilter)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [dialog, setDialog] = useState<DialogState>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -118,7 +121,7 @@ const TaskBoardPage = () => {
     let ignore = false
     Promise.all([
       fetchProject(projectId),
-      fetchTasks(projectId, { q, assigneeId, screenId }),
+      fetchTasks(projectId, { q, assigneeId, screenId, deadlineFrom, deadlineTo, deadlineColor }),
       fetchScreens(projectId),
     ])
       .then(([projectData, taskData, screenData]) => {
@@ -140,7 +143,17 @@ const TaskBoardPage = () => {
     return () => {
       ignore = true
     }
-  }, [projectId, reloadKey, q, assigneeId, screenId, handleAuthError])
+  }, [
+    projectId,
+    reloadKey,
+    q,
+    assigneeId,
+    screenId,
+    deadlineFrom,
+    deadlineTo,
+    deadlineColor,
+    handleAuthError,
+  ])
 
   if (!user) return null
 
@@ -248,6 +261,16 @@ const TaskBoardPage = () => {
             <MemberAvatars members={project.members} size={30} />
           </Box>
         )}
+        {project && (
+          <Button
+            variant="outlined"
+            startIcon={<TuneIcon />}
+            onClick={() => setDialog({ type: 'screens' })}
+            sx={{ flexShrink: 0, bgcolor: 'background.paper' }}
+          >
+            画面名の管理
+          </Button>
+        )}
       </Stack>
 
       {project && (
@@ -257,7 +280,6 @@ const TaskBoardPage = () => {
           members={project.members}
           screens={screens}
           resultCount={filtering && tasks ? tasks.length : null}
-          onManageScreens={() => setDialog({ type: 'screens' })}
         />
       )}
 

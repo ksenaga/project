@@ -1,3 +1,4 @@
+import type { DeadlineColor } from '../constants/deadlineColor'
 import type { TaskStatus } from '../constants/taskStatus'
 import { request } from './client'
 import type { ScreenRef } from './screens'
@@ -42,15 +43,37 @@ export type TaskFilter = {
   q: string // タイトル・説明・修正内容・修正理由・メモに含まれる文字
   assigneeId: number | '' // '' はすべて
   screenId: number | '' // '' はすべて
+  deadlineFrom: string // "YYYY-MM-DD"。'' は指定なし
+  deadlineTo: string
+  deadlineColor: DeadlineColor | '' // 完了・対応中止のタスクは含まない。'' はすべて
 }
 
-export const EMPTY_TASK_FILTER: TaskFilter = { q: '', assigneeId: '', screenId: '' }
+export const EMPTY_TASK_FILTER: TaskFilter = {
+  q: '',
+  assigneeId: '',
+  screenId: '',
+  deadlineFrom: '',
+  deadlineTo: '',
+  deadlineColor: '',
+}
+
+// 条件が1つでも指定されているか
+export const isFiltering = (filter: TaskFilter) =>
+  filter.q.trim() !== '' ||
+  filter.assigneeId !== '' ||
+  filter.screenId !== '' ||
+  filter.deadlineFrom !== '' ||
+  filter.deadlineTo !== '' ||
+  filter.deadlineColor !== ''
 
 export const fetchTasks = (projectId: number, filter: TaskFilter = EMPTY_TASK_FILTER) => {
   const params = new URLSearchParams()
   if (filter.q.trim() !== '') params.set('q', filter.q.trim())
   if (filter.assigneeId !== '') params.set('assignee_id', String(filter.assigneeId))
   if (filter.screenId !== '') params.set('screen_id', String(filter.screenId))
+  if (filter.deadlineFrom !== '') params.set('deadline_from', filter.deadlineFrom)
+  if (filter.deadlineTo !== '') params.set('deadline_to', filter.deadlineTo)
+  if (filter.deadlineColor !== '') params.set('deadline_color', filter.deadlineColor)
   const query = params.toString()
   return request<TaskSummary[]>(query ? `${base(projectId)}?${query}` : base(projectId))
 }

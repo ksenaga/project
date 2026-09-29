@@ -87,7 +87,11 @@ Request
 	q=文字	タイトル・説明・修正内容・修正理由・メモに含まれる(100文字以内)
 	assignee_id=1	担当者
 	screen_id=1	画面名(screen_id=none は画面名なし。画面名を必須にする前に作ったタスク用)
-例: /api/projects/1/tasks?q=ログイン&assignee_id=2&screen_id=3
+	deadline_from=2026-10-01	期限がこの日以降
+	deadline_to=2026-10-31	期限がこの日以前(deadline_from より前の日付は 400)
+	deadline_color=red	期限の色。red:7日以内(期限切れを含む) yellow:8〜14日 green:15日以上
+		※今日から期限までの日数で判定。完了・対応中止のタスクは含まない
+例: /api/projects/1/tasks?q=ログイン&assignee_id=2&screen_id=3&deadline_color=yellow
 タスク作成 POST /api/projects/{project_id}/tasks
 {
 	"title":"タイトル",	※必須。50文字以内
@@ -320,6 +324,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"存在しないユーザーが含まれています"(プロジェクトの member_ids)
 ・"担当者はプロジェクトメンバーから選んでください"
 ・"画面名を選んでください"
+・"期限の範囲が正しくありません"(タスク一覧の deadline_from が deadline_to より後)
 ・"画面名はプロジェクトに登録されているものから選んでください"
 ・"タスクは未対応か対応中で作成してください"
 ・"パスワードは8〜72文字で入力してください"
