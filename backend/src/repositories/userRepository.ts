@@ -86,3 +86,12 @@ export const softDelete = async (id: number, updaterId: number, conn: Conn = db)
     .where({ id })
     .whereNull('deleted_at')
     .update({ updater: updaterId, updated_at: db.fn.now(3), deleted_at: db.fn.now(3) })
+
+// 指定した権限の(削除されていない)ユーザーの ID
+export const findActiveIdsByRole = async (role: number): Promise<number[]> => {
+  const rows: { id: number }[] = await db('users')
+    .select('id')
+    .where({ role })
+    .whereNull('deleted_at')
+  return rows.map((row) => row.id)
+}

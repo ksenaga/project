@@ -3,6 +3,7 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import TaskAltIcon from '@mui/icons-material/TaskAlt'
 import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
+import NotificationBell from './NotificationBell'
 
 const NAV_ITEMS = [
   { to: '/projects', label: 'プロジェクト' },
@@ -58,6 +59,7 @@ const AppLayout = () => {
               </Typography>
             </Stack>
           )}
+          <NotificationBell />
           <Tooltip title="ログアウト">
             <IconButton aria-label="ログアウト" onClick={logout}>
               <LogoutIcon />

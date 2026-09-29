@@ -94,6 +94,18 @@ tag_id	bigint unsigned	v	tags.id	v
 問い合わせ	仕様確認・操作方法などの問い合わせ
 緊急	緊急対応が必要なもの
 
+notifications(通知)(テーブル・列にDBのコメントあり)(user_id・read_at にインデックス)
+列名	データ・タイプ	PK	FK	Not null	オートインクリメント
+id	bigint unsigned	v		v	v
+user_id	bigint unsigned		users.id	v	
+type	varchar(30)			v	
+project_id	bigint unsigned		projects.id	v	
+task_id	bigint unsigned		tasks.id		
+actor_id	bigint unsigned		users.id	v	
+message	varchar(255)			v	
+read_at	datetime(3)				
+created_at	datetime(3)			v	
+
 screens(画面名管理)(project_idとnameで複合ユニーク制約)(物理削除)
 列名	データ・タイプ	PK	FK	Not null	オートインクリメント
 id	bigint unsigned	v		v	v
@@ -122,7 +134,8 @@ updated_at	datetime(3)
 ・以前の tasks.screen(自由入力の文字列)は、マイグレーション(20260929000001_create_screens)で screens に移し、tasks.screen_id に置き換えた
 
 DBのコメント
-・tags / task_tags はテーブルと列に DB のコメントを付けている(それ以外のテーブルは未設定)
+・tags / task_tags / notifications はテーブルと列に DB のコメントを付けている(それ以外のテーブルは未設定)
+・notifications.type:project_member(プロジェクトのメンバーに追加された)/ task_assignee(タスクの担当者になった)/ task_review(タスクがレビュー中になった)/ task_cancel_request(中止依頼)。message は通知したときの名前で作った文章。read_at が NULL なら未読
 
 テーブルの管理
 ・テーブルは Knex のマイグレーションで作成・変更する(backend/db/migrations)

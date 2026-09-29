@@ -12,5 +12,7 @@ router.post('/', taskController.create)
 router.get('/:id', taskController.get)
 router.patch('/:id', taskController.update)
 router.delete('/:id', authorize(ROLE.ADMIN, ROLE.LEADER), taskController.remove)
+// 中止依頼は一般ユーザーのみ(service で制限)
+router.post('/:id/cancel-request', taskController.requestCancel)
 
 export default router

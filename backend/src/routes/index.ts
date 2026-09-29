@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import authRoutes from './authRoutes'
+import notificationRoutes from './notificationRoutes'
 import projectRoutes from './projectRoutes'
 import tagRoutes from './tagRoutes'
 import userRoutes from './userRoutes'
@@ -10,5 +11,6 @@ router.use(authRoutes)
 router.use('/projects', projectRoutes)
 router.use('/users', userRoutes)
 router.use('/tags', tagRoutes)
+router.use('/notifications', notificationRoutes)
 
 export default router

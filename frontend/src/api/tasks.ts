@@ -96,3 +96,10 @@ export const updateTask = (projectId: number, id: number, input: Partial<TaskInp
 
 export const deleteTask = (projectId: number, id: number) =>
   request<void>(`${base(projectId)}/${id}`, { method: 'DELETE' })
+
+// 中止依頼(一般ユーザーのみ)。管理者と担当リーダーに通知され、通知した人数が返る
+export const requestTaskCancel = (projectId: number, id: number, reason: string) =>
+  request<{ notified: number }>(`${base(projectId)}/${id}/cancel-request`, {
+    method: 'POST',
+    body: { reason },
+  })

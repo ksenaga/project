@@ -122,6 +122,17 @@ export const update = async (req: Request, res: Response) => {
   res.json(await taskService.update(projectId, id!, input, req.user!))
 }
 
+const REASON_MAX_LENGTH = 200
+
+// POST /api/projects/:projectId/tasks/:id/cancel-request(理由は任意)
+export const requestCancel = async (req: Request, res: Response) => {
+  const { projectId, id } = params(req)
+  const { reason } = parseBody(req.body ?? {})
+  const parsed = reason === undefined ? null : parseOptionalString(reason, REASON_MAX_LENGTH)
+  const notified = await taskService.requestCancel(projectId, id!, parsed, req.user!)
+  res.status(201).json({ notified })
+}
+
 // DELETE /api/projects/:projectId/tasks/:id
 export const remove = async (req: Request, res: Response) => {
   const { projectId, id } = params(req)

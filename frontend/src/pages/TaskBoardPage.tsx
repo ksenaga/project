@@ -35,7 +35,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
-import { Link as RouterLink, useParams } from 'react-router'
+import { Link as RouterLink, useParams, useSearchParams } from 'react-router'
 import {
   createBoardList,
   deleteBoardList,
@@ -119,6 +119,9 @@ const collisionDetection: CollisionDetection = (args) =>
 
 const TaskBoardPage = () => {
   const projectId = Number(useParams().projectId)
+  // 通知から開いたとき(?task=ID)は、そのタスクの詳細を開く
+  const [searchParams, setSearchParams] = useSearchParams()
+  const openTaskId = Number(searchParams.get('task')) || null
   const { user, setUser } = useAuth()
 
   const [project, setProject] = useState<ProjectDetail | null>(null)
@@ -208,6 +211,15 @@ const TaskBoardPage = () => {
   ])
 
   if (!user) return null
+
+  // 開いている詳細。URL の ?task=ID(通知から来たとき)も、ほかのダイアログが開いていなければ詳細として開く
+  const detailTaskId =
+    dialog?.type === 'detail' ? dialog.taskId : dialog === null ? openTaskId : null
+  // 詳細から次の操作に進むときや閉じるときは、URL の ?task=ID を外す
+  const changeDialog = (next: DialogState) => {
+    if (openTaskId !== null) setSearchParams({}, { replace: true })
+    setDialog(next)
+  }
 
   // リストの追加・名前の変更・並べ替え・削除は、管理者と担当しているリーダーのみ
   const canManageLists =
@@ -526,17 +538,18 @@ const TaskBoardPage = () => {
       )}
 
       {/* ダイアログ */}
-      {dialog?.type === 'detail' && (
+      {detailTaskId !== null && (
         <TaskDetailDialog
+          key={detailTaskId}
           user={user}
           projectId={projectId}
-          taskId={dialog.taskId}
+          taskId={detailTaskId}
           lists={lists}
           tags={tags}
-          onClose={() => setDialog(null)}
-          onEdit={(task) => setDialog({ type: 'edit', task })}
-          onDelete={(task) => setDialog({ type: 'delete', task })}
-          onCopy={(task) => setDialog({ type: 'copy', task })}
+          onClose={() => changeDialog(null)}
+          onEdit={(task) => changeDialog({ type: 'edit', task })}
+          onDelete={(task) => changeDialog({ type: 'delete', task })}
+          onCopy={(task) => changeDialog({ type: 'copy', task })}
         />
       )}
       {(dialog?.type === 'create' || dialog?.type === 'edit' || dialog?.type === 'copy') &&

@@ -5,6 +5,7 @@ import * as projectMemberRepository from '../repositories/projectMemberRepositor
 import * as projectRepository from '../repositories/projectRepository'
 import * as taskRepository from '../repositories/taskRepository'
 import * as userRepository from '../repositories/userRepository'
+import * as notificationService from './notificationService'
 import type {
   Project,
   ProjectBase,
@@ -64,6 +65,7 @@ export const create = async (input: ProjectRequest, user: AuthUser): Promise<Pro
     await boardListRepository.createDefaults(projectId, user.id, trx)
     return projectId
   })
+  await notificationService.notifyAddedToProject(id, input.member_ids, user)
   return get(id)
 }
 
@@ -87,7 +89,7 @@ export const update = async (
     throw badRequest('自分をプロジェクトメンバーから外すことはできません')
   }
 
-  await db.transaction(async (trx) => {
+  const added = await db.transaction(async (trx) => {
     const count = await projectRepository.update(id, pickProjectInput(input), user.id, trx)
     if (count === 0) throw projectNotFound()
 
@@ -110,8 +112,11 @@ export const update = async (
       await ensureUsersExist(toAdd, trx)
       await projectMemberRepository.remove(id, toRemove, trx)
       await projectMemberRepository.add(id, toAdd, user.id, trx)
+      return toAdd
     }
+    return []
   })
+  await notificationService.notifyAddedToProject(id, added, user)
   return get(id)
 }
 

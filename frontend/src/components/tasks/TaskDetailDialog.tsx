@@ -14,17 +14,25 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
-import { fetchTask, type Task } from '../../api/tasks'
+import { fetchTask, requestTaskCancel, type Task } from '../../api/tasks'
 import type { BoardList } from '../../api/boardLists'
 import type { Tag } from '../../api/tags'
-import { CUSTOM_LIST_COLOR, TASK_STATUS, TASK_STATUS_COLOR } from '../../constants/taskStatus'
+import { ROLE } from '../../constants/role'
+import {
+  CLOSED_STATUSES,
+  CUSTOM_LIST_COLOR,
+  TASK_STATUS,
+  TASK_STATUS_COLOR,
+} from '../../constants/taskStatus'
 import type { LoginUser } from '../../pages/LoginPage'
 import { formatDate } from '../../utils/date'
 import { canDeleteTask, canEditTask } from '../../utils/taskPermission'
 import LinkifiedText from '../LinkifiedText'
 import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
+import CancelRequestDialog from './CancelRequestDialog'
 
 type Props = {
   user: LoginUser
@@ -86,6 +94,14 @@ const TaskDetailDialog = ({
   tags,
 }: Props) => {
   const [task, setTask] = useState<Task | null>(null)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  // 中止依頼を送ったとき(通知した人数)
+  const [cancelSent, setCancelSent] = useState<number | null>(null)
+  // 一般ユーザーは、完了・対応中止でないタスクの中止を管理者・リーダーに依頼できる
+  const canRequestCancel =
+    task !== null &&
+    user.role === ROLE.MEMBER &&
+    !(CLOSED_STATUSES.includes(task.status) && task.list_id === null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -118,7 +134,23 @@ const TaskDetailDialog = ({
       )}
       {task && (
         <>
-          <DialogTitle sx={{ pt: 3.5, pb: 2 }}>
+          <DialogTitle
+            // 右上のボタンにタイトルが重ならないよう、右に余白を空ける
+            sx={{ pt: 3.5, pb: 2, position: 'relative', pr: canRequestCancel ? 22 : undefined }}
+          >
+            {canRequestCancel && (
+              <Button
+                variant="outlined"
+                color="warning"
+                size="small"
+                startIcon={<BlockOutlinedIcon />}
+                onClick={() => setCancelOpen(true)}
+                disabled={cancelSent !== null}
+                sx={{ position: 'absolute', top: 24, right: 24 }}
+              >
+                {cancelSent !== null ? '中止依頼済み' : '中止依頼'}
+              </Button>
+            )}
             <Chip
               label={
                 task.list_id !== null
@@ -149,6 +181,11 @@ const TaskDetailDialog = ({
           </DialogTitle>
           <DialogContent sx={{ pb: 3.5 }}>
             <Stack spacing={3}>
+              {cancelSent !== null && (
+                <Alert severity="success" onClose={() => setCancelSent(null)}>
+                  中止依頼を送りました（{cancelSent}人に通知しました）
+                </Alert>
+              )}
               {task.status === TASK_STATUS.DONE && (
                 <Alert severity="info">完了したタスクは編集できません</Alert>
               )}
@@ -248,6 +285,17 @@ const TaskDetailDialog = ({
           </Button>
         )}
       </DialogActions>
+      {cancelOpen && task && (
+        <CancelRequestDialog
+          taskTitle={task.title}
+          onClose={() => setCancelOpen(false)}
+          onSend={async (reason) => {
+            const { notified } = await requestTaskCancel(projectId, task.id, reason)
+            setCancelOpen(false)
+            setCancelSent(notified)
+          }}
+        />
+      )}
     </Dialog>
   )
 }

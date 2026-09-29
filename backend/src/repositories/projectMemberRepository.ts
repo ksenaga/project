@@ -65,3 +65,13 @@ export const findProjectsByUserId = async (
 export const removeUserFromAll = async (userId: number, conn: Conn = db): Promise<void> => {
   await conn('project_member').where({ user_id: userId }).delete()
 }
+
+// プロジェクトのメンバーのうち、指定した権限の(削除されていない)ユーザーの ID
+export const findUserIdsByRole = async (projectId: number, role: number): Promise<number[]> => {
+  const rows: { id: number }[] = await db('project_member as pm')
+    .join('users as u', 'u.id', 'pm.user_id')
+    .select('u.id')
+    .where({ 'pm.project_id': projectId, 'u.role': role })
+    .whereNull('u.deleted_at')
+  return rows.map((row) => row.id)
+}

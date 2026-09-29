@@ -22,6 +22,7 @@ API設計
 タスク詳細	GET	/api/projects/{project_id}/tasks/{id}
 タスク編集	PATCH	/api/projects/{project_id}/tasks/{id}
 タスク削除	DELETE	/api/projects/{project_id}/tasks/{id}
+中止依頼	POST	/api/projects/{project_id}/tasks/{id}/cancel-request
 【画面名】
 機能	HTTPメソッド	URL
 画面名一覧取得	GET	/api/projects/{project_id}/screens
@@ -38,6 +39,11 @@ API設計
 【タグ】
 機能	HTTPメソッド	URL
 タグ一覧取得	GET	/api/tags
+【通知】
+機能	HTTPメソッド	URL
+通知一覧取得	GET	/api/notifications
+通知を既読にする	POST	/api/notifications/{id}/read
+すべて既読にする	POST	/api/notifications/read-all
 【ユーザー一覧】
 機能	HTTPメソッド	URL
 ユーザー一覧取得	GET	/api/users
@@ -164,6 +170,17 @@ Request
 	"list_ids":[1,6,2,3,4,5]	※必須。すべてのリストの ID を左から並べたい順に
 }
 リスト削除 DELETE /api/projects/{project_id}/lists/{id}
+
+【タスクの中止依頼】
+中止依頼 POST /api/projects/{project_id}/tasks/{id}/cancel-request
+※一般ユーザー(プロジェクトメンバー)のみ。全管理者と担当リーダーに通知する。完了・対応中止のタスクは不可
+{
+	"reason":"仕様変更で不要になったため"	※任意。200文字以内
+}
+Response
+{
+	"notified":2	※通知した人数
+}
 
 【画面名】
 ※プロジェクトメンバー全員(管理者は全プロジェクト)が追加・編集・削除できる
@@ -332,6 +349,34 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 	{}
 ]
 
+【通知】
+※ログイン中のユーザー自身の通知だけを扱う(他人の通知は既読にできない)
+※通知する場面
+　・プロジェクトのメンバーに追加された → 追加された人
+　・タスクの担当者になった(作成・編集・コピー)→ 担当者になった人
+　・タスクがレビュー中になった → 全管理者と、そのプロジェクトの担当リーダー
+　・一般ユーザーがタスクの中止を依頼した → 全管理者と、そのプロジェクトの担当リーダー
+　・操作した本人には通知しない。通知の作成に失敗しても、元の操作は取り消さない
+通知一覧取得 GET /api/notifications
+※新しい順に30件。削除されたプロジェクトの通知は出さない
+{
+	"notifications":[
+		{
+			"id":1,
+			"type":"task_review",	※project_member / task_assignee / task_review / task_cancel_request
+			"project_id":1,
+			"task_id":5,	※プロジェクトの通知は null
+			"message":"t_memberさんがタスク「ログイン修正」(プロジェクト)をレビュー中にしました",
+			"read":false,
+			"created_at":"2026-09-29T12:00:57.313Z"
+		}
+	],
+	"unread_count":1
+}
+通知を既読にする POST /api/notifications/{id}/read
+すべて既読にする POST /api/notifications/read-all
+(なし)
+
 【ボードのリスト】
 リスト一覧取得 GET /api/projects/{project_id}/lists
 ※左からの並び順。status は既存の5つのときそのステータス、追加したリストは null。task_count は入っているタスク数
@@ -434,6 +479,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"未対応・対応中・レビュー中・完了・対応中止のリストは変更・削除できません"
 ・"すべてのリストを指定してください"(リストの並べ替え)
 ・"リストが存在しません"(タスクの list_id)
+・"完了・対応中止のタスクは中止を依頼できません"(409。中止依頼)
 ・"期限の範囲が正しくありません"(タスク一覧の deadline_from が deadline_to より後)
 ・"画面名はプロジェクトに登録されているものから選んでください"
 ・"タスクは未対応か対応中で作成してください"
@@ -507,6 +553,9 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
 成功 204
 失敗 401 or 403(一般ユーザー) or 404
+中止依頼 POST /api/projects/{project_id}/tasks/{id}/cancel-request
+成功 201
+失敗 400 or 401 or 403(一般ユーザー以外・メンバーでない) or 404 or 409(完了・対応中止のタスク)
 
 リスト一覧取得 GET /api/projects/{project_id}/lists
 成功 200
@@ -539,6 +588,16 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 
 タグ一覧取得 GET /api/tags
 成功 200
+失敗 401
+
+通知一覧取得 GET /api/notifications
+成功 200
+失敗 401
+通知を既読にする POST /api/notifications/{id}/read
+成功 204
+失敗 400 or 401
+すべて既読にする POST /api/notifications/read-all
+成功 204
 失敗 401
 
 ユーザ一覧 GET /api/users

@@ -4,6 +4,7 @@ import * as projectMemberRepository from '../repositories/projectMemberRepositor
 import * as tagRepository from '../repositories/tagRepository'
 import * as taskRepository from '../repositories/taskRepository'
 import {
+  CLOSED_STATUSES,
   CREATABLE_STATUSES,
   CUSTOM_LIST_STATUS,
   MEMBER_EDITABLE_FIELDS,
@@ -17,6 +18,7 @@ import {
 } from '../types/task'
 import { ROLE, type AuthUser } from '../types/user'
 import * as boardListService from './boardListService'
+import * as notificationService from './notificationService'
 import { ensureProjectAccess } from './projectAccess'
 import * as screenService from './screenService'
 
@@ -93,7 +95,9 @@ export const create = async (
     await taskRepository.replaceTags(taskId, input.tag_ids, trx)
     return taskId
   })
-  return getTask(projectId, id)
+  const created = await getTask(projectId, id)
+  await notificationService.notifyAssigned(projectId, created, input.user_ids, user)
+  return created
 }
 
 export const update = async (
@@ -153,7 +157,38 @@ export const update = async (
     if (userIds !== undefined) await taskRepository.replaceAssignees(id, userIds, trx)
     if (tagIds !== undefined) await taskRepository.replaceTags(id, tagIds, trx)
   })
-  return getTask(projectId, id)
+  const updated = await getTask(projectId, id)
+
+  // 新しく担当者になった人へ通知する
+  const before = current.assignees.map((assignee) => assignee.id)
+  const newAssignees = updated.assignees
+    .map((a) => a.id)
+    .filter((userId) => !before.includes(userId))
+  await notificationService.notifyAssigned(projectId, updated, newAssignees, user)
+
+  // レビュー中になったら、管理者と担当リーダーへ通知する
+  const isReview = (task: Task) => task.status === TASK_STATUS.REVIEW && task.list_id === null
+  if (isReview(updated) && !isReview(current)) {
+    await notificationService.notifyReviewRequested(projectId, updated, user)
+  }
+  return updated
+}
+
+// 中止依頼(一般ユーザーのみ)。管理者と担当リーダーに通知する。通知した人数を返す
+export const requestCancel = async (
+  projectId: number,
+  id: number,
+  reason: string | null,
+  user: AuthUser,
+): Promise<number> => {
+  await ensureProjectAccess(projectId, user)
+  // 管理者・リーダーは自分で対応中止にできるので、依頼はできない
+  if (user.role !== ROLE.MEMBER) throw forbidden()
+  const task = await getTask(projectId, id)
+  if (CLOSED_STATUSES.includes(task.status) && task.list_id === null) {
+    throw conflict('完了・対応中止のタスクは中止を依頼できません')
+  }
+  return notificationService.notifyCancelRequested(projectId, task, reason, user)
 }
 
 // 削除できるのは管理者・リーダー(ルートで制限)
