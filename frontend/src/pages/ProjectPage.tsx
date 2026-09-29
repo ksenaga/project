@@ -236,7 +236,7 @@ const ProjectPage = () => {
                         component={RouterLink}
                         to={tasksPath}
                         color="inherit"
-                        underline="hover"
+                        underline="none"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {project.name}
