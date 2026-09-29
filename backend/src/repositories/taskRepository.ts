@@ -16,6 +16,7 @@ const summaryColumns = [
   't.title',
   't.status',
   db.raw("DATE_FORMAT(t.deadline, '%Y-%m-%d') AS deadline"),
+  't.list_id',
   's.id as screen_id',
   's.name as screen_name',
 ]
@@ -199,4 +200,12 @@ export const clearScreenOfDeletedTasks = async (screenId: number, conn: Conn = d
     .where({ screen_id: screenId })
     .whereNotNull('deleted_at')
     .update({ screen_id: null })
+}
+
+// 削除済みのタスクからリストを外す(リストを削除する前に使う)
+export const clearListOfDeletedTasks = async (listId: number, conn: Conn = db) => {
+  await conn('tasks')
+    .where({ list_id: listId })
+    .whereNotNull('deleted_at')
+    .update({ list_id: null })
 }

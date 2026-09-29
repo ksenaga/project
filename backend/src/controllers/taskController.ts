@@ -46,6 +46,9 @@ const parseTaskInput = (body: unknown, { partial }: { partial: boolean }) => {
   if (has('status')) input.status = parseEnum(b.status, TASK_STATUSES)
   else if (!partial) input.status = TASK_STATUS.TODO
 
+  // 追加したリストへの移動(null は外す)
+  if (has('list_id')) input.list_id = b.list_id === null ? null : parseId(b.list_id)
+
   // 任意項目
   if (has('modified')) input.modified = parseOptionalString(b.modified)
   if (has('reason')) input.reason = parseOptionalString(b.reason)

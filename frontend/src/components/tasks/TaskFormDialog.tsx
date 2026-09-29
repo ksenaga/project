@@ -12,6 +12,7 @@ import {
   Stack,
   TextField,
 } from '@mui/material'
+import type { BoardList } from '../../api/boardLists'
 import type { Screen } from '../../api/screens'
 import type { Task, TaskInput } from '../../api/tasks'
 import type { Member } from '../../api/users'
@@ -29,6 +30,8 @@ type Props = {
   members: Member[]
   // 画面名の候補(プロジェクトに登録されている画面名)
   screens: Screen[]
+  // ボードのリスト(編集では、追加したリストも選べる)
+  lists: BoardList[]
   // 渡されたら編集、なければ新規作成
   task?: Task
   // 渡されたらこのタスクの内容をコピーして新規作成する
@@ -45,6 +48,7 @@ const TaskFormDialog = ({
   user,
   members,
   screens,
+  lists,
   task,
   copyFrom,
   defaultStatus,
@@ -72,6 +76,9 @@ const TaskFormDialog = ({
   const [status, setStatus] = useState<TaskStatus>(
     task?.status ?? copyStatus ?? defaultStatus ?? '未対応',
   )
+  // 追加したリストに入っているとき(編集のみ)。null なら status のリスト
+  const [listId, setListId] = useState<number | null>(task?.list_id ?? null)
+  const customLists = isEdit ? lists.filter((list) => list.status === null) : []
   const [deadline, setDeadline] = useState(task?.deadline ?? '')
   // 画面名は必須。'' は未選択(以前の画面名なしのタスクを編集・コピーしたときも未選択になる)
   const [screenId, setScreenId] = useState<number | ''>(source?.screen?.id ?? '')
@@ -120,7 +127,8 @@ const TaskFormDialog = ({
     if (editable.some((key) => errors[key])) return
 
     const common = {
-      status,
+      // 追加したリストは list_id、既存の5つは status で送る
+      ...(listId !== null ? { list_id: listId } : { status }),
       modified: toNullable(modified),
       reason: toNullable(reason),
       git: toNullable(git),
@@ -191,13 +199,30 @@ const TaskFormDialog = ({
                 select
                 label="ステータス"
                 required
-                value={status}
-                onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                value={listId !== null ? `list:${listId}` : status}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value.startsWith('list:')) {
+                    setListId(Number(value.slice('list:'.length)))
+                  } else {
+                    setListId(null)
+                    setStatus(value as TaskStatus)
+                  }
+                }}
                 disabled={saving}
               >
                 {displayedStatuses.map((s) => (
-                  <MenuItem key={s} value={s} disabled={!statusOptions.includes(s)}>
+                  <MenuItem
+                    key={s}
+                    value={s}
+                    disabled={listId === null && !statusOptions.includes(s)}
+                  >
                     {s}
+                  </MenuItem>
+                ))}
+                {customLists.map((list) => (
+                  <MenuItem key={list.id} value={`list:${list.id}`}>
+                    {list.name}
                   </MenuItem>
                 ))}
               </TextField>

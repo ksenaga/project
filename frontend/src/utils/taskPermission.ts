@@ -1,3 +1,4 @@
+import type { BoardList } from '../api/boardLists'
 import type { TaskSummary } from '../api/tasks'
 import { ROLE } from '../constants/role'
 import {
@@ -21,7 +22,18 @@ export const isLimitedEditor = (user: LoginUser) => user.role === ROLE.MEMBER
 export const settableStatuses = (user: LoginUser): readonly TaskStatus[] =>
   user.role === ROLE.MEMBER ? MEMBER_SETTABLE_STATUSES : TASK_STATUSES
 
-export const canMoveTask = (user: LoginUser, task: TaskSummary, status: TaskStatus) =>
-  canEditTask(user, task) && settableStatuses(user).includes(status)
+// 既存の5つのリストは設定できるステータスのみ、追加したリストは編集できるタスクならどれでも移動できる
+export const canMoveTask = (user: LoginUser, task: TaskSummary, target: BoardList) =>
+  canEditTask(user, task) &&
+  (target.status === null || settableStatuses(user).includes(target.status))
+
+// ドラッグ&ドロップで使うリスト(列)の ID
+export const listDndId = (list: BoardList) => `list-${list.id}`
+
+// タスクがどのリストにいるか(追加したリストに入っていなければ、ステータスのリスト)
+export const listOfTask = (task: TaskSummary, lists: BoardList[]) =>
+  task.list_id !== null
+    ? lists.find((list) => list.id === task.list_id)
+    : lists.find((list) => list.status === task.status)
 
 export const canDeleteTask = (user: LoginUser) => user.role !== ROLE.MEMBER

@@ -4,6 +4,7 @@ import * as projectMemberRepository from '../repositories/projectMemberRepositor
 import * as taskRepository from '../repositories/taskRepository'
 import {
   CREATABLE_STATUSES,
+  CUSTOM_LIST_STATUS,
   MEMBER_EDITABLE_FIELDS,
   MEMBER_SETTABLE_STATUSES,
   TASK_STATUS,
@@ -14,6 +15,7 @@ import {
   type TaskSummary,
 } from '../types/task'
 import { ROLE, type AuthUser } from '../types/user'
+import * as boardListService from './boardListService'
 import { ensureProjectAccess } from './projectAccess'
 import * as screenService from './screenService'
 
@@ -67,7 +69,7 @@ export const create = async (
   user: AuthUser,
 ): Promise<Task> => {
   await ensureProjectAccess(projectId, user)
-  if (!CREATABLE_STATUSES.includes(input.status)) {
+  if (!CREATABLE_STATUSES.includes(input.status) || input.list_id) {
     throw badRequest('タスクは未対応か対応中で作成してください')
   }
   await ensureAssigneesAreMembers(projectId, input.user_ids)
@@ -100,11 +102,23 @@ export const update = async (
     if (Object.keys(input).some((key) => !editable.includes(key))) throw forbidden()
     if (
       input.status !== undefined &&
-      input.status !== current.status &&
+      (input.status !== current.status || current.list_id !== null) &&
       !MEMBER_SETTABLE_STATUSES.includes(input.status)
     ) {
       throw forbidden()
     }
+  }
+
+  // 追加したリストへの移動(status は「対応中」にして未完了として扱う)。
+  // 既存の5つのリストへの移動(status の指定)では、追加したリストから外す
+  if (input.list_id !== undefined && input.status !== undefined) throw badRequest()
+  if (input.list_id) {
+    if (!(await boardListService.findCustomList(projectId, input.list_id))) {
+      throw badRequest('リストが存在しません')
+    }
+    input = { ...input, status: CUSTOM_LIST_STATUS }
+  } else if (input.status !== undefined || input.list_id === null) {
+    input = { ...input, list_id: null }
   }
 
   // 新しく追加する担当者はプロジェクトメンバーから選ぶ

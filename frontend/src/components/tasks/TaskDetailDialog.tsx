@@ -15,7 +15,8 @@ import {
 } from '@mui/material'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { fetchTask, type Task } from '../../api/tasks'
-import { TASK_STATUS, TASK_STATUS_COLOR } from '../../constants/taskStatus'
+import type { BoardList } from '../../api/boardLists'
+import { CUSTOM_LIST_COLOR, TASK_STATUS, TASK_STATUS_COLOR } from '../../constants/taskStatus'
 import type { LoginUser } from '../../pages/LoginPage'
 import { formatDate } from '../../utils/date'
 import { canDeleteTask, canEditTask } from '../../utils/taskPermission'
@@ -30,6 +31,8 @@ type Props = {
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
   onCopy: (task: Task) => void
+  // 追加したリストに入っているタスクは、ステータスの代わりにリスト名を表示する
+  lists: BoardList[]
 }
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
@@ -74,6 +77,7 @@ const TaskDetailDialog = ({
   onEdit,
   onDelete,
   onCopy,
+  lists,
 }: Props) => {
   const [task, setTask] = useState<Task | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -110,12 +114,22 @@ const TaskDetailDialog = ({
         <>
           <DialogTitle sx={{ pt: 3.5, pb: 2 }}>
             <Chip
-              label={task.status}
+              label={
+                task.list_id !== null
+                  ? (lists.find((list) => list.id === task.list_id)?.name ?? task.status)
+                  : task.status
+              }
               size="small"
               sx={{
                 mb: 1,
-                bgcolor: TASK_STATUS_COLOR[task.status],
-                color: 'common.white',
+                // 追加したリストはそのリストの色(明るい色なので文字は濃い色)
+                ...(task.list_id !== null
+                  ? {
+                      bgcolor:
+                        lists.find((list) => list.id === task.list_id)?.color ?? CUSTOM_LIST_COLOR,
+                      color: 'text.primary',
+                    }
+                  : { bgcolor: TASK_STATUS_COLOR[task.status], color: 'common.white' }),
                 fontWeight: 600,
               }}
             />

@@ -48,6 +48,7 @@
 * タスクのコピー
 * 担当者設定
 * ステータス管理（ドラッグ&ドロップで変更）
+* ボードのリストの追加・名前の変更・並べ替え・削除（管理者・担当リーダー）
 * 絞り込み（文字・担当者・画面名・期限・期限の色の複数条件）
 * 期限の色分け（7日以内は赤、8〜14日は黄色、15日以上は黄緑）
 * 画面名の管理（プロジェクトごと。タスクではプルダウンで選択）
@@ -61,7 +62,7 @@
 
 ## 技術構成
 
-* Frontend: React / TypeScript / MUI / React Router / dnd-kit（ドラッグ&ドロップ）/ Vite
+* Frontend: React / TypeScript / MUI / React Router / dnd-kit（ドラッグ&ドロップ・並べ替え）/ Vite
 * Backend: Node.js / Express / TypeScript / Knex（マイグレーション・クエリ）
 * Database: MySQL 8.4（Docker）
 * Authentication: JWT（httpOnly Cookie に保存）/ bcrypt（パスワードのハッシュ化）

@@ -1,5 +1,6 @@
 import { db, type Conn } from '../db/knex'
 import { badRequest, conflict, forbidden, notFound } from '../errors/HttpError'
+import * as boardListRepository from '../repositories/boardListRepository'
 import * as projectMemberRepository from '../repositories/projectMemberRepository'
 import * as projectRepository from '../repositories/projectRepository'
 import * as taskRepository from '../repositories/taskRepository'
@@ -60,13 +61,14 @@ export const create = async (input: ProjectRequest, user: AuthUser): Promise<Pro
       trx,
     )
     await projectMemberRepository.add(projectId, input.member_ids, user.id, trx)
+    await boardListRepository.createDefaults(projectId, user.id, trx)
     return projectId
   })
   return get(id)
 }
 
 // 編集(フェーズの変更を含む)は、管理者(全プロジェクト)と、参画しているリーダーのみ
-const ensureCanEdit = async (id: number, user: AuthUser) => {
+export const ensureCanEdit = async (id: number, user: AuthUser) => {
   if (!(await projectRepository.findById(id))) throw projectNotFound()
   const allowed =
     user.role === ROLE.ADMIN ||

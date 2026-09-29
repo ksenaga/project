@@ -14,17 +14,36 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import TuneIcon from '@mui/icons-material/Tune'
 import {
+  closestCenter,
+  defaultKeyboardCoordinateGetter,
   DndContext,
   DragOverlay,
   KeyboardCode,
   KeyboardSensor,
   PointerSensor,
+  rectIntersection,
   useSensor,
   useSensors,
+  type CollisionDetection,
+  type KeyboardCoordinateGetter,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
+import {
+  arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
 import { Link as RouterLink, useParams } from 'react-router'
+import {
+  createBoardList,
+  deleteBoardList,
+  fetchBoardLists,
+  reorderBoardLists,
+  updateBoardList,
+  type BoardList,
+} from '../api/boardLists'
 import { ApiError } from '../api/client'
 import { fetchProject, type ProjectDetail } from '../api/projects'
 import { fetchScreens, type Screen } from '../api/screens'
@@ -43,21 +62,24 @@ import {
 import { useAuth } from '../auth/AuthContext'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import MemberAvatars from '../components/MemberAvatars'
+import AddListColumn from '../components/tasks/AddListColumn'
 import ScreenManageDialog from '../components/tasks/ScreenManageDialog'
 import TaskCard, { TaskCardContent } from '../components/tasks/TaskCard'
 import TaskColumn from '../components/tasks/TaskColumn'
+import TaskColumnPreview from '../components/tasks/TaskColumnPreview'
 import TaskDetailDialog from '../components/tasks/TaskDetailDialog'
 import TaskFilterBar from '../components/tasks/TaskFilterBar'
 import TaskFormDialog from '../components/tasks/TaskFormDialog'
+import { ROLE } from '../constants/role'
 import {
   CREATABLE_STATUSES,
+  CUSTOM_LIST_STATUS,
   TASK_STATUS,
-  TASK_STATUSES,
   type TaskStatus,
 } from '../constants/taskStatus'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDate } from '../utils/date'
-import { canEditTask, canMoveTask } from '../utils/taskPermission'
+import { canEditTask, canMoveTask, listDndId, listOfTask } from '../utils/taskPermission'
 
 type DialogState =
   | { type: 'detail'; taskId: number }
@@ -66,6 +88,7 @@ type DialogState =
   | { type: 'edit'; task: Task }
   | { type: 'delete'; task: Task }
   | { type: 'screens' }
+  | { type: 'deleteList'; list: BoardList }
   | null
 
 type Notice = { message: string; severity: 'success' | 'error' }
@@ -82,6 +105,16 @@ const screenReaderInstructions = {
     'スペースキーでカードを持ち上げ、矢印キーで列を移動し、スペースキーで置きます。Esc キーで取り消します。Enter キーで詳細を開きます。',
 }
 
+// キーボードで動かすとき、リストは矢印キー1回で隣のリストへ、カードは少しずつ動く
+const keyboardCoordinates: KeyboardCoordinateGetter = (event, args) =>
+  String(args.active).startsWith('list-')
+    ? sortableKeyboardCoordinates(event, args)
+    : defaultKeyboardCoordinateGetter(event, args)
+
+// リストを並べ替えているときは近い列、カードを動かしているときは重なった列をドロップ先にする
+const collisionDetection: CollisionDetection = (args) =>
+  args.active.data.current?.type === 'list' ? closestCenter(args) : rectIntersection(args)
+
 const TaskBoardPage = () => {
   const projectId = Number(useParams().projectId)
   const { user, setUser } = useAuth()
@@ -89,6 +122,7 @@ const TaskBoardPage = () => {
   const [project, setProject] = useState<ProjectDetail | null>(null)
   const [tasks, setTasks] = useState<TaskSummary[] | null>(null)
   const [screens, setScreens] = useState<Screen[]>([])
+  const [lists, setLists] = useState<BoardList[]>([])
   const [filter, setFilter] = useState<TaskFilter>(EMPTY_TASK_FILTER)
   // 文字検索は入力が止まってから実行する
   const q = useDebouncedValue(filter.q, 300)
@@ -99,10 +133,12 @@ const TaskBoardPage = () => {
   const [dialog, setDialog] = useState<DialogState>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [activeTask, setActiveTask] = useState<TaskSummary | null>(null)
+  // ドラッグしているリスト
+  const [activeList, setActiveList] = useState<BoardList | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { keyboardCodes }),
+    useSensor(KeyboardSensor, { keyboardCodes, coordinateGetter: keyboardCoordinates }),
   )
 
   // 401(ログイン切れ)ならログイン画面に戻す
@@ -123,12 +159,14 @@ const TaskBoardPage = () => {
       fetchProject(projectId),
       fetchTasks(projectId, { q, assigneeId, screenId, deadlineFrom, deadlineTo, deadlineColor }),
       fetchScreens(projectId),
+      fetchBoardLists(projectId),
     ])
-      .then(([projectData, taskData, screenData]) => {
+      .then(([projectData, taskData, screenData, listData]) => {
         if (ignore) return
         setProject(projectData)
         setTasks(taskData)
         setScreens(screenData)
+        setLists(listData)
         setLoadError(null)
       })
       .catch((err: unknown) => {
@@ -157,31 +195,119 @@ const TaskBoardPage = () => {
 
   if (!user) return null
 
+  // リストの追加・名前の変更・並べ替え・削除は、管理者と担当しているリーダーのみ
+  const canManageLists =
+    user.role === ROLE.ADMIN ||
+    (user.role === ROLE.LEADER && (project?.members.some((m) => m.id === user.id) ?? false))
+
+  const showError = (err: unknown) => {
+    handleAuthError(err)
+    setNotice({ message: (err as Error).message, severity: 'error' })
+  }
+
   const handleDragStart = ({ active }: DragStartEvent) => {
+    if (active.data.current?.type === 'list') {
+      setActiveList(lists.find((l) => listDndId(l) === active.id) ?? null)
+      return
+    }
     setActiveTask(tasks?.find((t) => t.id === active.id) ?? null)
   }
 
-  // 列にドロップしたらステータスを変更する。先に画面を更新し、失敗したら元に戻す
-  const handleDragEnd = async ({ active, over }: DragEndEvent) => {
-    setActiveTask(null)
-    const task = tasks?.find((t) => t.id === active.id)
-    const status = over?.id as TaskStatus | undefined
-    if (!task || !status || status === task.status) return
-    if (!canMoveTask(user, task, status)) {
-      setNotice({ message: `「${status}」には移動できません`, severity: 'error' })
+  // リストを並べ替える。先に画面を更新し、失敗したら元に戻す
+  const moveList = async (activeId: string, overId: string) => {
+    const from = lists.findIndex((l) => listDndId(l) === activeId)
+    const to = lists.findIndex((l) => listDndId(l) === overId)
+    if (from < 0 || to < 0 || from === to) return
+    const previous = lists
+    const next = arrayMove(lists, from, to)
+    setLists(next)
+    try {
+      setLists(
+        await reorderBoardLists(
+          projectId,
+          next.map((l) => l.id),
+        ),
+      )
+    } catch (err) {
+      setLists(previous)
+      showError(err)
+    }
+  }
+
+  // カードをリストにドロップしたら移動する。先に画面を更新し、失敗したら元に戻す
+  const moveTask = async (task: TaskSummary, target: BoardList) => {
+    if (listOfTask(task, lists)?.id === target.id) return
+    if (!canMoveTask(user, task, target)) {
+      setNotice({ message: `「${target.name}」には移動できません`, severity: 'error' })
       return
     }
-
+    // 既存の5つはステータス、追加したリストは list_id で表す
+    const moved =
+      target.status !== null
+        ? { status: target.status, list_id: null }
+        : { status: CUSTOM_LIST_STATUS, list_id: target.id }
     const previous = tasks
-    setTasks((current) => current?.map((t) => (t.id === task.id ? { ...t, status } : t)) ?? null)
+    setTasks((current) => current?.map((t) => (t.id === task.id ? { ...t, ...moved } : t)) ?? null)
     try {
-      await updateTask(projectId, task.id, { status })
-      setNotice({ message: `「${task.title}」を${status}にしました`, severity: 'success' })
+      await updateTask(
+        projectId,
+        task.id,
+        target.status !== null ? { status: target.status } : { list_id: target.id },
+      )
+      setNotice({ message: `「${task.title}」を${target.name}に移動しました`, severity: 'success' })
+      reload()
+    } catch (err) {
+      setTasks(previous)
+      showError(err)
+    }
+  }
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    setActiveTask(null)
+    setActiveList(null)
+    if (!over) return
+    if (active.data.current?.type === 'list') {
+      moveList(String(active.id), String(over.id))
+      return
+    }
+    const task = tasks?.find((t) => t.id === active.id)
+    const target = lists.find((l) => listDndId(l) === over.id)
+    if (task && target) moveTask(task, target)
+  }
+
+  const handleAddList = async (name: string, color: string) => {
+    try {
+      const list = await createBoardList(projectId, name, color)
+      setLists((current) => [...current, list])
+      return true
+    } catch (err) {
+      showError(err)
+      return false
+    }
+  }
+
+  const handleUpdateList = async (list: BoardList, fields: { name?: string; color?: string }) => {
+    try {
+      const updated = await updateBoardList(projectId, list.id, fields)
+      setLists((current) => current.map((l) => (l.id === updated.id ? updated : l)))
+      return true
+    } catch (err) {
+      showError(err)
+      return false
+    }
+  }
+
+  const handleDeleteList = async () => {
+    if (dialog?.type !== 'deleteList') return
+    try {
+      await deleteBoardList(projectId, dialog.list.id)
     } catch (err) {
       handleAuthError(err)
-      setTasks(previous)
-      setNotice({ message: (err as Error).message, severity: 'error' })
+      throw err
     }
+    setDialog(null)
+    setNotice({ message: 'リストを削除しました', severity: 'success' })
+    reload()
   }
 
   const handleSubmit = async (input: Partial<TaskInput>) => {
@@ -306,9 +432,15 @@ const TaskBoardPage = () => {
       {!loadError && (
         <DndContext
           sensors={sensors}
+          collisionDetection={collisionDetection}
+          // 端に近づいたときだけボードを自動でスクロールする(右側の列をつかんだ瞬間にスクロールしないように)
+          autoScroll={{ threshold: { x: 0.08, y: 0.15 } }}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          onDragCancel={() => setActiveTask(null)}
+          onDragCancel={() => {
+            setActiveTask(null)
+            setActiveList(null)
+          }}
           accessibility={{ screenReaderInstructions }}
         >
           <Box
@@ -322,34 +454,45 @@ const TaskBoardPage = () => {
               pb: 1,
             }}
           >
-            {TASK_STATUSES.map((status) => {
-              const columnTasks = tasks?.filter((t) => t.status === status) ?? []
-              return (
-                <TaskColumn
-                  key={status}
-                  status={status}
-                  count={columnTasks.length}
-                  acceptsDrop={
-                    activeTask
-                      ? status === activeTask.status || canMoveTask(user, activeTask, status)
-                      : undefined
-                  }
-                  canAdd={project !== null && CREATABLE_STATUSES.includes(status)}
-                  onAdd={() => setDialog({ type: 'create', status })}
-                >
-                  {tasks === null &&
-                    [0, 1].map((i) => <Skeleton key={i} variant="rounded" height={72} />)}
-                  {columnTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      draggable={canEditTask(user, task)}
-                      onOpen={() => setDialog({ type: 'detail', taskId: task.id })}
-                    />
-                  ))}
-                </TaskColumn>
-              )
-            })}
+            <SortableContext items={lists.map(listDndId)} strategy={horizontalListSortingStrategy}>
+              {lists.map((list) => {
+                const columnTasks = tasks?.filter((t) => listOfTask(t, lists)?.id === list.id) ?? []
+                return (
+                  <TaskColumn
+                    key={list.id}
+                    list={list}
+                    count={columnTasks.length}
+                    acceptsDrop={
+                      activeTask
+                        ? listOfTask(activeTask, lists)?.id === list.id ||
+                          canMoveTask(user, activeTask, list)
+                        : undefined
+                    }
+                    canAdd={
+                      project !== null &&
+                      list.status !== null &&
+                      CREATABLE_STATUSES.includes(list.status)
+                    }
+                    onAdd={() => list.status && setDialog({ type: 'create', status: list.status })}
+                    canManage={canManageLists}
+                    onUpdate={(fields) => handleUpdateList(list, fields)}
+                    onDelete={() => setDialog({ type: 'deleteList', list })}
+                  >
+                    {tasks === null &&
+                      [0, 1].map((i) => <Skeleton key={i} variant="rounded" height={72} />)}
+                    {columnTasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        draggable={canEditTask(user, task)}
+                        onOpen={() => setDialog({ type: 'detail', taskId: task.id })}
+                      />
+                    ))}
+                  </TaskColumn>
+                )
+              })}
+            </SortableContext>
+            {canManageLists && project && <AddListColumn onAdd={handleAddList} />}
           </Box>
 
           <DragOverlay dropAnimation={null}>
@@ -357,6 +500,12 @@ const TaskBoardPage = () => {
               <Box sx={{ width: 256, cursor: 'grabbing' }}>
                 <TaskCardContent task={activeTask} lifted />
               </Box>
+            )}
+            {activeList && (
+              <TaskColumnPreview
+                list={activeList}
+                count={tasks?.filter((t) => listOfTask(t, lists)?.id === activeList.id).length ?? 0}
+              />
             )}
           </DragOverlay>
         </DndContext>
@@ -368,6 +517,7 @@ const TaskBoardPage = () => {
           user={user}
           projectId={projectId}
           taskId={dialog.taskId}
+          lists={lists}
           onClose={() => setDialog(null)}
           onEdit={(task) => setDialog({ type: 'edit', task })}
           onDelete={(task) => setDialog({ type: 'delete', task })}
@@ -380,6 +530,7 @@ const TaskBoardPage = () => {
             user={user}
             members={project.members}
             screens={screens}
+            lists={lists}
             task={dialog.type === 'edit' ? dialog.task : undefined}
             copyFrom={dialog.type === 'copy' ? dialog.task : undefined}
             defaultStatus={dialog.type === 'create' ? dialog.status : TASK_STATUS.TODO}
@@ -392,6 +543,14 @@ const TaskBoardPage = () => {
           projectId={projectId}
           onClose={() => setDialog(null)}
           onChanged={reload}
+        />
+      )}
+      {dialog?.type === 'deleteList' && (
+        <ConfirmDeleteDialog
+          title="リストを削除"
+          message={`リスト「${dialog.list.name}」を削除しますか？`}
+          onClose={() => setDialog(null)}
+          onConfirm={handleDeleteList}
         />
       )}
       {dialog?.type === 'delete' && (

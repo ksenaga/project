@@ -28,6 +28,13 @@ API設計
 画面名追加	POST	/api/projects/{project_id}/screens
 画面名編集	PATCH	/api/projects/{project_id}/screens/{id}
 画面名削除	DELETE	/api/projects/{project_id}/screens/{id}
+【ボードのリスト】
+機能	HTTPメソッド	URL
+リスト一覧取得	GET	/api/projects/{project_id}/lists
+リスト追加	POST	/api/projects/{project_id}/lists
+リスト名・色の変更	PATCH	/api/projects/{project_id}/lists/{id}
+リストの並べ替え	PUT	/api/projects/{project_id}/lists/order
+リスト削除	DELETE	/api/projects/{project_id}/lists/{id}
 【ユーザー一覧】
 機能	HTTPメソッド	URL
 ユーザー一覧取得	GET	/api/users
@@ -127,10 +134,31 @@ Request
 	"git":"",
 	"memo":""
 }
-※一般ユーザーが送れるのは status / modified / reason / git / memo のみ(担当者に含まれるタスクだけ編集できる)
+※追加したリストへ移動するときは "list_id":3 を送る(status と同時には送れない)。status を送ると追加したリストから外れる
+※一般ユーザーが送れるのは status / list_id / modified / reason / git / memo のみ(担当者に含まれるタスクだけ編集できる)
 ※user_ids を送ると担当者をその内容に置き換える(1人以上)
 ※screen_id を送る場合は null 不可(画面名は必須)
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
+
+【ボードのリスト】
+※閲覧はプロジェクトメンバー。追加・名前の変更・並べ替え・削除は、管理者と担当しているリーダーのみ
+※既存の5つ(未対応/対応中/レビュー中/完了/対応中止)は名前の変更・削除ができない。タスクが入っているリストは削除できない
+リスト追加 POST /api/projects/{project_id}/lists(一番右に追加)
+{
+	"name":"先方確認待ち",	※必須。50文字以内。同じプロジェクトで重複不可
+	"color":"#ede9fe"	※任意。背景色(#RRGGBB)。省略時は #f1f5f9。同じ色のリストがあってもよい
+}
+リスト名・色の変更 PATCH /api/projects/{project_id}/lists/{id}
+※送った項目だけ変更する(追加したリストのみ)
+{
+	"name":"先方確認待ち",
+	"color":"#ede9fe"
+}
+リストの並べ替え PUT /api/projects/{project_id}/lists/order
+{
+	"list_ids":[1,6,2,3,4,5]	※必須。すべてのリストの ID を左から並べたい順に
+}
+リスト削除 DELETE /api/projects/{project_id}/lists/{id}
 
 【画面名】
 ※プロジェクトメンバー全員(管理者は全プロジェクト)が追加・編集・削除できる
@@ -247,7 +275,8 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 		"screen":{	※画面名を必須にする前に作ったタスクは null
 			"id":1,
 			"name":"ログイン画面"
-		}
+		},
+		"list_id":null	※追加したリストに入っているときはそのリストの ID(status は "対応中")
 	},
 	{}
 ]
@@ -274,6 +303,31 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 	"screen":null
 }
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
+(なし)
+
+【ボードのリスト】
+リスト一覧取得 GET /api/projects/{project_id}/lists
+※左からの並び順。status は既存の5つのときそのステータス、追加したリストは null。task_count は入っているタスク数
+[
+	{
+		"id":1,
+		"name":"未対応",
+		"status":"未対応",
+		"position":1,
+		"color":"#e2e8f0",
+		"task_count":3
+	},
+	{
+		"id":6,
+		"name":"先方確認待ち",
+		"status":null,
+		"position":2,
+		"color":"#ede9fe",
+		"task_count":0
+	}
+]
+リスト追加・リスト名の変更は、1件分の同じ形を返す。並べ替えは一覧と同じ形を返す
+リスト削除 DELETE /api/projects/{project_id}/lists/{id}
 (なし)
 
 【画面名】
@@ -349,6 +403,9 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"担当者を1人以上選んでください"
 ・"担当者はプロジェクトメンバーから選んでください"
 ・"画面名を選んでください"
+・"未対応・対応中・レビュー中・完了・対応中止のリストは変更・削除できません"
+・"すべてのリストを指定してください"(リストの並べ替え)
+・"リストが存在しません"(タスクの list_id)
 ・"期限の範囲が正しくありません"(タスク一覧の deadline_from が deadline_to より後)
 ・"画面名はプロジェクトに登録されているものから選んでください"
 ・"タスクは未対応か対応中で作成してください"
@@ -372,6 +429,8 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"完了したタスクは編集できません"(タスク編集)
 ・"このユーザー名は既に使われています"(ユーザー作成・編集)
 ・"この画面名は既に登録されています"(画面名追加・編集)
+・"同じ名前のリストが既にあります"(リスト追加・名前の変更)
+・"タスクが入っているリストは削除できません"(リスト削除)
 ・"タスクで使われている画面名は削除できません"(画面名削除)
 ・"未完了のタスクを担当しているため削除できません"(ユーザー削除)
 500 サーバーエラー
@@ -420,6 +479,22 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
 成功 204
 失敗 401 or 403(一般ユーザー) or 404
+
+リスト一覧取得 GET /api/projects/{project_id}/lists
+成功 200
+失敗 401 or 403 or 404
+リスト追加 POST /api/projects/{project_id}/lists
+成功 201
+失敗 400 or 401 or 403(管理者・担当しているリーダー以外) or 404 or 409(重複)
+リスト名・色の変更 PATCH /api/projects/{project_id}/lists/{id}
+成功 200
+失敗 400(既存の5つ) or 401 or 403 or 404 or 409(重複)
+リストの並べ替え PUT /api/projects/{project_id}/lists/order
+成功 200
+失敗 400 or 401 or 403 or 404
+リスト削除 DELETE /api/projects/{project_id}/lists/{id}
+成功 204
+失敗 400(既存の5つ) or 401 or 403 or 404 or 409(タスクが入っている)
 
 画面名一覧取得 GET /api/projects/{project_id}/screens
 成功 200

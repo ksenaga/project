@@ -12,6 +12,7 @@ export type TaskSummary = {
   deadline: string // "YYYY-MM-DD"
   assignees: Member[] // 担当者(1人以上。ID 順)
   screen: ScreenRef | null
+  list_id: number | null // 追加したリストに入っているときのリスト。既存の5つのときは null
 }
 
 // 詳細で返るタスク
@@ -30,6 +31,8 @@ export type TaskInput = {
   status: TaskStatus
   deadline: string
   screen_id: number // 必須
+  // 追加したリストへ移動するときに指定する(status と同時には指定できない)。status を指定すると外れる
+  list_id: number | null
   modified: string | null
   reason: string | null
   git: string | null

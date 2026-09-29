@@ -23,6 +23,12 @@ export const TASK_STATUS_COLOR: Record<TaskStatus, string> = {
 // 新規作成できるステータス(全ロール共通)
 export const CREATABLE_STATUSES: readonly TaskStatus[] = [TASK_STATUS.TODO, TASK_STATUS.DOING]
 
+// 追加したリストに入っているタスクの status(サーバーと同じ。未完了として扱うため「対応中」)
+export const CUSTOM_LIST_STATUS: TaskStatus = TASK_STATUS.DOING
+
+// 追加したリストの色
+export const CUSTOM_LIST_COLOR = '#64748b'
+
 // 一般ユーザーが設定できるステータス(完了・対応中止は管理者・リーダーのみ)
 export const MEMBER_SETTABLE_STATUSES: readonly TaskStatus[] = [
   TASK_STATUS.TODO,

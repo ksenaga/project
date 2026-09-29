@@ -39,6 +39,7 @@ title	varchar(50)			v
 detail	text			v	
 status	varchar(20)			v	
 screen_id	bigint unsigned		screens.id		
+list_id	bigint unsigned		board_lists.id		
 deadline	datetime(3)			v	
 modified	text				
 reason	text				
@@ -55,6 +56,19 @@ task_assignees(タスクの担当者)(task_idとuser_idで複合主キー)(物�
 task_id	bigint unsigned	v	tasks.id	v	
 user_id	bigint unsigned	v	users.id	v	
 
+board_lists(ボードのリスト)(project_idとnameで複合ユニーク制約)(物理削除)
+列名	データ・タイプ	PK	FK	Not null	オートインクリメント
+id	bigint unsigned	v		v	v
+project_id	bigint unsigned		projects.id	v	
+name	varchar(50)			v	
+status	varchar(20)				
+position	int			v	
+color	varchar(7)			v	
+creater	bigint unsigned		users.id	v	
+created_at	datetime(3)			v	
+updater	bigint unsigned		users.id		
+updated_at	datetime(3)				
+
 screens(画面名管理)(project_idとnameで複合ユニーク制約)(物理削除)
 列名	データ・タイプ	PK	FK	Not null	オートインクリメント
 id	bigint unsigned	v		v	v
@@ -69,6 +83,9 @@ updated_at	datetime(3)
 ・users.role:1=管理者 2=リーダー 3=一般ユーザー
 ・users.password:bcrypt でハッシュ化した値(平文は保存しない)
 ・tasks.status:未対応/対応中/レビュー中/完了/対応中止
+・board_lists.color:リストの背景色(#RRGGBB。明るめの色)。既存の5つはステータスの色を明るくしたもの(未対応 #e2e8f0 / 対応中 #dbeafe / レビュー中 #fef3c7 / 完了 #dcfce7 / 対応中止 #fee2e2)。追加したリストは作成時に選ぶ(同じ色でもよい)
+・board_lists:プロジェクトごとのボードのリスト。position が左からの並び順。既存の5つ(未対応/対応中/レビュー中/完了/対応中止)は status にそのステータスが入り、名前の変更・削除はできない。追加したリストは status が NULL。プロジェクト作成時に既存の5つを作る
+・tasks.list_id:追加したリストに入っているときのリスト(既存の5つのときは NULL で、status のリストに入る)。追加したリストに入っているタスクの status は「対応中」にして、未完了として扱う(進捗度・期限の色・メンバーを外すときのチェック)
 ・projects.phase:企画/要件定義/設計/開発/テスト/リリース/保守/終了(作成時は企画)
 ・task_assignees:タスクの担当者(1タスクに1人以上)。以前の tasks.user_id(担当者1人)は、マイグレーション(20260929000003_create_task_assignees)で task_assignees に移して削除した
 ・tasks.screen_id:画面名(そのプロジェクトの screens から選ぶ。API で必須にしている。画面名を必須にする前に作ったタスクは NULL の場合があるため、列は NULL を許可)
@@ -92,6 +109,7 @@ users
  │      │           ├──< task_assignees >── users(担当者)
  │      │           └── screens(画面名)
  │      ├──< screens
+ │      ├──< board_lists ──< tasks(list_id)
  │      └──< project_member >── users
  │
  └──< task_assignees

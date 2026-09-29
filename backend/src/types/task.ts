@@ -40,8 +40,18 @@ export type DeadlineColor = (typeof DEADLINE_COLORS)[number]
 export const DEADLINE_RED_MAX_DAYS = 7
 export const DEADLINE_YELLOW_MAX_DAYS = 14
 
-// 一般ユーザーが編集できる項目
-export const MEMBER_EDITABLE_FIELDS = ['status', 'modified', 'reason', 'git', 'memo'] as const
+// 追加したリストに入っているタスクの status(未完了として扱うため「対応中」にする)
+export const CUSTOM_LIST_STATUS: TaskStatus = TASK_STATUS.DOING
+
+// 一般ユーザーが編集できる項目(list_id は追加したリストへの移動)
+export const MEMBER_EDITABLE_FIELDS = [
+  'status',
+  'list_id',
+  'modified',
+  'reason',
+  'git',
+  'memo',
+] as const
 
 // 一覧で返すタスク
 export type TaskSummary = {
@@ -51,6 +61,7 @@ export type TaskSummary = {
   deadline: string // "YYYY-MM-DD"
   assignees: Member[] // 担当者(1人以上。ID 順)
   screen: ScreenRef | null
+  list_id: number | null // 追加したリストに入っているときのリスト。既存の5つのときは null
 }
 
 // 詳細で返すタスク
@@ -70,6 +81,8 @@ export type TaskInput = {
   status: TaskStatus
   deadline: string
   screen_id: number // 必須(以前のタスクは画面名なし(NULL)の場合がある)
+  // 追加したリストへ移動するときに指定する(status と同時には指定できない)。status を指定すると null になる
+  list_id: number | null
   modified: string | null
   reason: string | null
   git: string | null
