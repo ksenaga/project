@@ -27,6 +27,8 @@ type Props = {
   members: Member[]
   // 渡されたら編集、なければ新規作成
   task?: Task
+  // 渡されたらこのタスクの内容をコピーして新規作成する
+  copyFrom?: Task
   // 新規作成時のステータス(押した列の「＋」)
   defaultStatus?: TaskStatus
   onClose: () => void
@@ -35,19 +37,37 @@ type Props = {
 
 const toNullable = (value: string) => (value.trim() === '' ? null : value.trim())
 
-const TaskFormDialog = ({ user, members, task, defaultStatus, onClose, onSubmit }: Props) => {
+const TaskFormDialog = ({
+  user,
+  members,
+  task,
+  copyFrom,
+  defaultStatus,
+  onClose,
+  onSubmit,
+}: Props) => {
   const isEdit = task !== undefined
+  // コピーでは Git URL・期限・修正内容・修正理由・メモは引き継がない
+  const source = task ?? copyFrom
+  const copyStatus =
+    copyFrom && CREATABLE_STATUSES.includes(copyFrom.status) ? copyFrom.status : undefined
+  const copyAssignee =
+    copyFrom && members.some((m) => m.id === copyFrom.assignee.id)
+      ? copyFrom.assignee.id
+      : undefined
   // 一般ユーザーが編集するときは、ステータス・修正内容・修正理由・Git URL・メモだけ変更できる
   const limited = isEdit && isLimitedEditor(user)
 
-  const [title, setTitle] = useState(task?.title ?? '')
-  const [detail, setDetail] = useState(task?.detail ?? '')
+  const [title, setTitle] = useState(source?.title ?? '')
+  const [detail, setDetail] = useState(source?.detail ?? '')
   const [userId, setUserId] = useState<number | ''>(
-    task?.assignee.id ?? (members.some((m) => m.id === user.id) ? user.id : ''),
+    task?.assignee.id ?? copyAssignee ?? (members.some((m) => m.id === user.id) ? user.id : ''),
   )
-  const [status, setStatus] = useState<TaskStatus>(task?.status ?? defaultStatus ?? '未対応')
+  const [status, setStatus] = useState<TaskStatus>(
+    task?.status ?? copyStatus ?? defaultStatus ?? '未対応',
+  )
   const [deadline, setDeadline] = useState(task?.deadline ?? '')
-  const [screen, setScreen] = useState(task?.screen ?? '')
+  const [screen, setScreen] = useState(source?.screen ?? '')
   const [modified, setModified] = useState(task?.modified ?? '')
   const [reason, setReason] = useState(task?.reason ?? '')
   const [git, setGit] = useState(task?.git ?? '')
@@ -125,11 +145,17 @@ const TaskFormDialog = ({ user, members, task, defaultStatus, onClose, onSubmit 
     <Dialog open onClose={saving ? undefined : onClose} fullWidth maxWidth="md">
       <Box component="form" noValidate onSubmit={handleSubmit}>
         <DialogTitle sx={{ fontWeight: 700 }}>
-          {isEdit ? 'タスクを編集' : 'タスクを作成'}
+          {isEdit ? 'タスクを編集' : copyFrom ? 'タスクのコピーを作成' : 'タスクを作成'}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
+            {copyFrom && (
+              <Alert severity="info">
+                「{copyFrom.title}」の内容をコピーしました。Git
+                URL・期限・修正内容・修正理由・メモは空になっています
+              </Alert>
+            )}
             {limited && (
               <Alert severity="info">
                 一般ユーザーが変更できるのは、ステータス（未対応・対応中・レビュー中）・修正内容・修正理由・Git

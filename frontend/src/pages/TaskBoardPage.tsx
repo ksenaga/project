@@ -54,6 +54,7 @@ import { canEditTask, canMoveTask } from '../utils/taskPermission'
 type DialogState =
   | { type: 'detail'; taskId: number }
   | { type: 'create'; status: TaskStatus }
+  | { type: 'copy'; task: Task }
   | { type: 'edit'; task: Task }
   | { type: 'delete'; task: Task }
   | null
@@ -159,7 +160,11 @@ const TaskBoardPage = () => {
         setNotice({ message: 'タスクを更新しました', severity: 'success' })
       } else {
         await createTask(projectId, input as TaskInput)
-        setNotice({ message: 'タスクを作成しました', severity: 'success' })
+        setNotice({
+          message:
+            dialog?.type === 'copy' ? 'タスクのコピーを作成しました' : 'タスクを作成しました',
+          severity: 'success',
+        })
       }
     } catch (err) {
       handleAuthError(err)
@@ -307,18 +312,21 @@ const TaskBoardPage = () => {
           onClose={() => setDialog(null)}
           onEdit={(task) => setDialog({ type: 'edit', task })}
           onDelete={(task) => setDialog({ type: 'delete', task })}
+          onCopy={(task) => setDialog({ type: 'copy', task })}
         />
       )}
-      {(dialog?.type === 'create' || dialog?.type === 'edit') && project && (
-        <TaskFormDialog
-          user={user}
-          members={project.members}
-          task={dialog.type === 'edit' ? dialog.task : undefined}
-          defaultStatus={dialog.type === 'create' ? dialog.status : TASK_STATUS.TODO}
-          onClose={() => setDialog(null)}
-          onSubmit={handleSubmit}
-        />
-      )}
+      {(dialog?.type === 'create' || dialog?.type === 'edit' || dialog?.type === 'copy') &&
+        project && (
+          <TaskFormDialog
+            user={user}
+            members={project.members}
+            task={dialog.type === 'edit' ? dialog.task : undefined}
+            copyFrom={dialog.type === 'copy' ? dialog.task : undefined}
+            defaultStatus={dialog.type === 'create' ? dialog.status : TASK_STATUS.TODO}
+            onClose={() => setDialog(null)}
+            onSubmit={handleSubmit}
+          />
+        )}
       {dialog?.type === 'delete' && (
         <ConfirmDeleteDialog
           title="タスクを削除"

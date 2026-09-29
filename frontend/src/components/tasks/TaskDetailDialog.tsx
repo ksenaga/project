@@ -13,6 +13,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { fetchTask, type Task } from '../../api/tasks'
 import { TASK_STATUS, TASK_STATUS_COLOR } from '../../constants/taskStatus'
 import type { LoginUser } from '../../pages/LoginPage'
@@ -27,6 +28,7 @@ type Props = {
   onClose: () => void
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
+  onCopy: (task: Task) => void
 }
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
@@ -34,7 +36,7 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
       {label}
     </Typography>
-    <Box sx={{ mt: 0.25 }}>{children}</Box>
+    <Box sx={{ mt: 0.5 }}>{children}</Box>
   </Box>
 )
 
@@ -51,7 +53,26 @@ const Text = ({ value }: { value: string | null }) =>
 
 const isHttpUrl = (value: string) => /^https?:\/\//.test(value)
 
-const TaskDetailDialog = ({ user, projectId, taskId, onClose, onEdit, onDelete }: Props) => {
+// 詳細は読みやすいよう、文字をテーマの標準サイズの 1.3 倍にする
+const SCALE = 1.3
+const scaledTextSx = {
+  '& .MuiTypography-body2': { fontSize: `${0.875 * SCALE}rem` },
+  '& .MuiTypography-caption': { fontSize: `${0.75 * SCALE}rem` },
+  '& .MuiTypography-h6': { fontSize: `${1.25 * SCALE}rem` },
+  '& .MuiChip-root': { height: 24 * SCALE, fontSize: `${0.8125 * SCALE}rem` },
+  '& .MuiButton-root': { fontSize: `${0.875 * SCALE}rem` },
+  '& .MuiAlert-message': { fontSize: `${0.875 * SCALE}rem` },
+}
+
+const TaskDetailDialog = ({
+  user,
+  projectId,
+  taskId,
+  onClose,
+  onEdit,
+  onDelete,
+  onCopy,
+}: Props) => {
   const [task, setTask] = useState<Task | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,7 +87,13 @@ const TaskDetailDialog = ({ user, projectId, taskId, onClose, onEdit, onDelete }
   }, [projectId, taskId])
 
   return (
-    <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog
+      open
+      onClose={onClose}
+      fullWidth
+      maxWidth="lg"
+      slotProps={{ paper: { sx: { ...scaledTextSx, px: 1.5 } } }}
+    >
       {error && (
         <DialogContent>
           <Alert severity="error">{error}</Alert>
@@ -79,7 +106,7 @@ const TaskDetailDialog = ({ user, projectId, taskId, onClose, onEdit, onDelete }
       )}
       {task && (
         <>
-          <DialogTitle sx={{ pb: 1 }}>
+          <DialogTitle sx={{ pt: 3.5, pb: 2 }}>
             <Chip
               label={task.status}
               size="small"
@@ -98,15 +125,15 @@ const TaskDetailDialog = ({ user, projectId, taskId, onClose, onEdit, onDelete }
               {task.title}
             </Typography>
           </DialogTitle>
-          <DialogContent>
-            <Stack spacing={2}>
+          <DialogContent sx={{ pb: 3.5 }}>
+            <Stack spacing={3}>
               {task.status === TASK_STATUS.DONE && (
                 <Alert severity="info">完了したタスクは編集できません</Alert>
               )}
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
                 <Field label="担当者">
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <UserAvatar user={task.assignee} size={22} />
+                    <UserAvatar user={task.assignee} size={28} />
                     <Typography variant="body2">{task.assignee.name}</Typography>
                   </Stack>
                 </Field>
@@ -157,6 +184,12 @@ const TaskDetailDialog = ({ user, projectId, taskId, onClose, onEdit, onDelete }
         <Button onClick={onClose} color="inherit">
           閉じる
         </Button>
+        {/* プロジェクトメンバーなら誰でもタスクを作成できるので、コピーも全員できる */}
+        {task && (
+          <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => onCopy(task)}>
+            コピー
+          </Button>
+        )}
         {task && canEditTask(user, task) && (
           <Button variant="contained" onClick={() => onEdit(task)}>
             編集

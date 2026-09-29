@@ -73,10 +73,21 @@ const TaskCard = ({ task, draggable, onOpen }: Props) => {
     disabled: !draggable,
   })
 
+  // ドラッグできないカードも、クリックで詳細は開ける。
+  // そのため「無効」「ドラッグ可能」とは読み上げさせない
+  const {
+    'aria-disabled': _disabled,
+    'aria-roledescription': roleDescription,
+    'aria-describedby': describedBy,
+    ...a11yAttributes
+  } = attributes
+
   return (
     <Box
       ref={setNodeRef}
-      {...attributes}
+      {...a11yAttributes}
+      aria-roledescription={draggable ? roleDescription : undefined}
+      aria-describedby={draggable ? describedBy : undefined}
       {...listeners}
       aria-label={`${task.title}（担当: ${task.assignee.name}、期限: ${formatDate(task.deadline)}）`}
       onClick={onOpen}
