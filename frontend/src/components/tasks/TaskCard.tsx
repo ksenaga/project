@@ -6,6 +6,9 @@ import { DEADLINE_COLOR_STYLE, deadlineColorOf } from '../../constants/deadlineC
 import { formatDate } from '../../utils/date'
 import UserAvatar from '../UserAvatar'
 
+// 担当者のアイコンは3人まで並べ、それ以上は「+N」で表示する
+const MAX_AVATARS = 3
+
 // カードの見た目(ドラッグ中に指に付いてくる DragOverlay でも使う)
 export const TaskCardContent = ({
   task,
@@ -17,6 +20,7 @@ export const TaskCardContent = ({
   // 7日以内は赤、8〜14日は黄色、15日以上は黄緑。完了・対応中止は色を付けない
   const color = deadlineColorOf(task)
   const colorStyle = color && DEADLINE_COLOR_STYLE[color]
+  const assigneeNames = task.assignees.map((assignee) => assignee.name).join('、')
 
   return (
     <Paper
@@ -63,10 +67,30 @@ export const TaskCardContent = ({
           <EventOutlinedIcon sx={{ fontSize: 14 }} />
           {formatDate(task.deadline)}
         </Box>
-        <Tooltip title={`担当: ${task.assignee.name}`}>
-          <span style={{ display: 'inline-flex' }}>
-            <UserAvatar user={task.assignee} size={24} />
-          </span>
+        <Tooltip title={`担当: ${assigneeNames}`}>
+          <Stack direction="row" sx={{ alignItems: 'center' }}>
+            {task.assignees.slice(0, MAX_AVATARS).map((assignee, i) => (
+              <UserAvatar
+                key={assignee.id}
+                user={assignee}
+                size={24}
+                sx={{
+                  ml: i === 0 ? 0 : '-6px',
+                  border: '2px solid',
+                  borderColor: 'background.paper',
+                  boxSizing: 'content-box',
+                }}
+              />
+            ))}
+            {task.assignees.length > MAX_AVATARS && (
+              <Typography
+                variant="caption"
+                sx={{ ml: 0.5, fontWeight: 600, color: 'text.secondary' }}
+              >
+                +{task.assignees.length - MAX_AVATARS}
+              </Typography>
+            )}
+          </Stack>
         </Tooltip>
       </Stack>
     </Paper>
@@ -102,7 +126,7 @@ const TaskCard = ({ task, draggable, onOpen }: Props) => {
       aria-roledescription={draggable ? roleDescription : undefined}
       aria-describedby={draggable ? describedBy : undefined}
       {...listeners}
-      aria-label={`${task.title}（担当: ${task.assignee.name}、期限: ${formatDate(task.deadline)}）`}
+      aria-label={`${task.title}（担当: ${task.assignees.map((a) => a.name).join('、')}、期限: ${formatDate(task.deadline)}）`}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onOpen()

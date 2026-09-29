@@ -13,6 +13,7 @@ import {
   parseDate,
   parseEnum,
   parseId,
+  parseIdArray,
   parseOptionalString,
   parseRequiredString,
 } from '../validators/common'
@@ -29,7 +30,12 @@ const parseTaskInput = (body: unknown, { partial }: { partial: boolean }) => {
   // 必須項目
   if (has('title') || !partial) input.title = parseRequiredString(b.title, TITLE_MAX_LENGTH)
   if (has('detail') || !partial) input.detail = parseRequiredString(b.detail)
-  if (has('user_id') || !partial) input.user_id = parseId(b.user_id)
+  // 担当者は1人以上
+  if (has('user_ids') || !partial) {
+    const userIds = parseIdArray(b.user_ids ?? [])
+    if (userIds.length === 0) throw badRequest('担当者を1人以上選んでください')
+    input.user_ids = userIds
+  }
   if (has('deadline') || !partial) input.deadline = parseDate(b.deadline)
   // 画面名は必須(「画面名の管理」で登録したものから選ぶ)。PATCH で送る場合も null は不可
   if (has('screen_id') || !partial) {

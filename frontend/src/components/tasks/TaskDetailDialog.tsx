@@ -19,6 +19,7 @@ import { TASK_STATUS, TASK_STATUS_COLOR } from '../../constants/taskStatus'
 import type { LoginUser } from '../../pages/LoginPage'
 import { formatDate } from '../../utils/date'
 import { canDeleteTask, canEditTask } from '../../utils/taskPermission'
+import LinkifiedText from '../LinkifiedText'
 import UserAvatar from '../UserAvatar'
 
 type Props = {
@@ -40,10 +41,11 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   </Box>
 )
 
-const Text = ({ value }: { value: string | null }) =>
+// linkify: true なら文章中の URL をリンクにする(チケットの URL などを貼って開けるように)
+const Text = ({ value, linkify = false }: { value: string | null; linkify?: boolean }) =>
   value ? (
     <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-      {value}
+      {linkify ? <LinkifiedText text={value} /> : value}
     </Typography>
   ) : (
     <Typography variant="body2" color="text.disabled">
@@ -131,12 +133,6 @@ const TaskDetailDialog = ({
                 <Alert severity="info">完了したタスクは編集できません</Alert>
               )}
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
-                <Field label="担当者">
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <UserAvatar user={task.assignee} size={28} />
-                    <Typography variant="body2">{task.assignee.name}</Typography>
-                  </Stack>
-                </Field>
                 <Field label="期限">
                   <Typography variant="body2">{formatDate(task.deadline)}</Typography>
                 </Field>
@@ -145,14 +141,29 @@ const TaskDetailDialog = ({
                   <Text value={task.screen?.name ?? null} />
                 </Field>
               </Box>
+              <Field label="担当者">
+                <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1.5 }}>
+                  {task.assignees.map((assignee) => (
+                    <Stack
+                      key={assignee.id}
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: 'center' }}
+                    >
+                      <UserAvatar user={assignee} size={28} />
+                      <Typography variant="body2">{assignee.name}</Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Field>
               <Field label="説明">
-                <Text value={task.detail} />
+                <Text value={task.detail} linkify />
               </Field>
               <Field label="修正内容">
-                <Text value={task.modified} />
+                <Text value={task.modified} linkify />
               </Field>
               <Field label="修正理由">
-                <Text value={task.reason} />
+                <Text value={task.reason} linkify />
               </Field>
               <Field label="Git URL">
                 {task.git && isHttpUrl(task.git) ? (
@@ -170,7 +181,7 @@ const TaskDetailDialog = ({
                 )}
               </Field>
               <Field label="メモ">
-                <Text value={task.memo} />
+                <Text value={task.memo} linkify />
               </Field>
             </Stack>
           </DialogContent>

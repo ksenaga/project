@@ -49,7 +49,7 @@ export type TaskSummary = {
   title: string
   status: TaskStatus
   deadline: string // "YYYY-MM-DD"
-  assignee: Member
+  assignees: Member[] // 担当者(1人以上。ID 順)
   screen: ScreenRef | null
 }
 
@@ -62,11 +62,11 @@ export type Task = TaskSummary & {
   memo: string | null
 }
 
-// 作成・編集で受け取る値(user_id は担当者)
+// 作成・編集で受け取る値(user_ids は担当者。1人以上)
 export type TaskInput = {
   title: string
   detail: string
-  user_id: number
+  user_ids: number[]
   status: TaskStatus
   deadline: string
   screen_id: number // 必須(以前のタスクは画面名なし(NULL)の場合がある)
@@ -75,6 +75,9 @@ export type TaskInput = {
   git: string | null
   memo: string | null
 }
+
+// tasks テーブルに書き込む値(担当者は task_assignees に書き込む)
+export type TaskFields = Omit<TaskInput, 'user_ids'>
 
 // 一覧の絞り込み条件(指定したものすべてに当てはまるタスクを返す)
 export type TaskFilter = {

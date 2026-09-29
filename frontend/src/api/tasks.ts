@@ -10,7 +10,7 @@ export type TaskSummary = {
   title: string
   status: TaskStatus
   deadline: string // "YYYY-MM-DD"
-  assignee: Member
+  assignees: Member[] // 担当者(1人以上。ID 順)
   screen: ScreenRef | null
 }
 
@@ -26,7 +26,7 @@ export type Task = TaskSummary & {
 export type TaskInput = {
   title: string
   detail: string
-  user_id: number
+  user_ids: number[] // 担当者(1人以上)
   status: TaskStatus
   deadline: string
   screen_id: number // 必須

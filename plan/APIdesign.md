@@ -92,7 +92,7 @@ Request
 タスク一覧 GET /api/projects/{project_id}/tasks
 絞り込み(クエリパラメータ。すべて任意。指定したものすべてに当てはまるタスクを返す)
 	q=文字	タイトル・説明・修正内容・修正理由・メモに含まれる(100文字以内)
-	assignee_id=1	担当者
+	assignee_id=1	担当者(その人が担当者に含まれるタスク)
 	screen_id=1	画面名(screen_id=none は画面名なし。画面名を必須にする前に作ったタスク用)
 	deadline_from=2026-10-01	期限がこの日以降
 	deadline_to=2026-10-31	期限がこの日以前(deadline_from より前の日付は 400)
@@ -103,7 +103,7 @@ Request
 {
 	"title":"タイトル",	※必須。50文字以内
 	"detail":"タスクの説明",	※必須
-	"user_id":1,	※必須。担当者(プロジェクトメンバー)
+	"user_ids":[1,2],	※必須。担当者(プロジェクトメンバー。1人以上)
 	"status":"未対応",	※任意。"未対応" か "対応中" のみ(省略時は "未対応")
 	"screen_id":1,	※必須。プロジェクトに登録された画面名
 	"deadline":"2027-01-01",	※必須
@@ -118,7 +118,7 @@ Request
 {
 	"title":"タイトル",
 	"detail":"タスクの説明",
-	"user_id":1,
+	"user_ids":[1,2],
 	"status":"対応中",
 	"screen_id":1,
 	"deadline":"2027-01-01",
@@ -127,7 +127,8 @@ Request
 	"git":"",
 	"memo":""
 }
-※一般ユーザーが送れるのは status / modified / reason / git / memo のみ
+※一般ユーザーが送れるのは status / modified / reason / git / memo のみ(担当者に含まれるタスクだけ編集できる)
+※user_ids を送ると担当者をその内容に置き換える(1人以上)
 ※screen_id を送る場合は null 不可(画面名は必須)
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
 
@@ -237,10 +238,12 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 		"title":"タイトル",
 		"status":"未対応",
 		"deadline":"2027-01-01",
-		"assignee":{
-			"id":1,
-			"name":"担当者"
-		},
+		"assignees":[	※担当者(ID 順)
+			{
+				"id":1,
+				"name":"担当者"
+			}
+		],
 		"screen":{	※画面名を必須にする前に作ったタスクは null
 			"id":1,
 			"name":"ログイン画面"
@@ -262,10 +265,12 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 	"reason":null,
 	"git":null,
 	"memo":null,
-	"assignee":{
-		"id":1,
-		"name":"担当者"
-	},
+	"assignees":[
+		{
+			"id":1,
+			"name":"担当者"
+		}
+	],
 	"screen":null
 }
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
@@ -341,6 +346,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 400 不正リクエスト
 ・"リクエストが不正です。"(必須項目がない、形式が違うなど)
 ・"存在しないユーザーが含まれています"(プロジェクトの member_ids)
+・"担当者を1人以上選んでください"
 ・"担当者はプロジェクトメンバーから選んでください"
 ・"画面名を選んでください"
 ・"期限の範囲が正しくありません"(タスク一覧の deadline_from が deadline_to より後)

@@ -37,7 +37,6 @@ id	bigint unsigned	v		v	v
 project_id	bigint unsigned		projects.id	v	
 title	varchar(50)			v	
 detail	text			v	
-user_id	bigint unsigned		users.id	v	
 status	varchar(20)			v	
 screen_id	bigint unsigned		screens.id		
 deadline	datetime(3)			v	
@@ -50,6 +49,11 @@ created_at	datetime(3)			v
 updater	bigint unsigned		users.id		
 updated_at	datetime(3)				
 deleted_at	datetime(3)		
+
+task_assignees(タスクの担当者)(task_idとuser_idで複合主キー)(物理削除)
+列名	データ・タイプ	PK	FK	Not null	オートインクリメント
+task_id	bigint unsigned	v	tasks.id	v	
+user_id	bigint unsigned	v	users.id	v	
 
 screens(画面名管理)(project_idとnameで複合ユニーク制約)(物理削除)
 列名	データ・タイプ	PK	FK	Not null	オートインクリメント
@@ -66,7 +70,7 @@ updated_at	datetime(3)
 ・users.password:bcrypt でハッシュ化した値(平文は保存しない)
 ・tasks.status:未対応/対応中/レビュー中/完了/対応中止
 ・projects.phase:企画/要件定義/設計/開発/テスト/リリース/保守/終了(作成時は企画)
-・tasks.user_id:担当者
+・task_assignees:タスクの担当者(1タスクに1人以上)。以前の tasks.user_id(担当者1人)は、マイグレーション(20260929000003_create_task_assignees)で task_assignees に移して削除した
 ・tasks.screen_id:画面名(そのプロジェクトの screens から選ぶ。API で必須にしている。画面名を必須にする前に作ったタスクは NULL の場合があるため、列は NULL を許可)
 ・screens は物理削除。タスク(削除済みを除く)で使われている画面名は削除できない
 ・deadline:日付のみ使う(時刻は 00:00:00)
@@ -85,9 +89,9 @@ dbのつながり
 users
  │
  ├──< projects ──< tasks
- │      │           │
+ │      │           ├──< task_assignees >── users(担当者)
  │      │           └── screens(画面名)
  │      ├──< screens
  │      └──< project_member >── users
  │
- └──< tasks
+ └──< task_assignees

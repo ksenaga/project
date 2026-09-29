@@ -10,9 +10,10 @@ import type { LoginUser } from '../pages/LoginPage'
 
 // サーバー側のルールと同じ判定。ボタンの表示やドラッグの可否に使う
 
-// 完了したタスクは誰も編集できない。一般ユーザーは自分が担当するタスクだけ
+// 完了したタスクは誰も編集できない。一般ユーザーは自分が担当者に含まれるタスクだけ
 export const canEditTask = (user: LoginUser, task: TaskSummary) =>
-  task.status !== TASK_STATUS.DONE && (user.role !== ROLE.MEMBER || task.assignee.id === user.id)
+  task.status !== TASK_STATUS.DONE &&
+  (user.role !== ROLE.MEMBER || task.assignees.some((assignee) => assignee.id === user.id))
 
 // 一般ユーザーは「編集できる項目」が限られる
 export const isLimitedEditor = (user: LoginUser) => user.role === ROLE.MEMBER
