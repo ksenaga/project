@@ -49,3 +49,19 @@ export const remove = async (
   if (userIds.length === 0) return
   await conn('project_member').where({ project_id: projectId }).whereIn('user_id', userIds).delete()
 }
+
+// ユーザーが参画しているプロジェクト(削除済みは除く、期限が近い順)
+export const findProjectsByUserId = async (
+  userId: number,
+): Promise<{ id: number; name: string }[]> =>
+  db('project_member as pm')
+    .join('projects as p', 'p.id', 'pm.project_id')
+    .select('p.id', 'p.name')
+    .where('pm.user_id', userId)
+    .whereNull('p.deleted_at')
+    .orderBy([{ column: 'p.deadline' }, { column: 'p.id' }])
+
+// ユーザーを全プロジェクトから外す(ユーザー削除時)
+export const removeUserFromAll = async (userId: number, conn: Conn = db): Promise<void> => {
+  await conn('project_member').where({ user_id: userId }).delete()
+}

@@ -1,8 +1,13 @@
-import { AppBar, Box, IconButton, Stack, Toolbar, Tooltip, Typography } from '@mui/material'
+import { AppBar, Box, Button, IconButton, Stack, Toolbar, Tooltip, Typography } from '@mui/material'
 import LogoutIcon from '@mui/icons-material/Logout'
 import TaskAltIcon from '@mui/icons-material/TaskAlt'
-import { Outlet } from 'react-router'
+import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
+
+const NAV_ITEMS = [
+  { to: '/projects', label: 'プロジェクト' },
+  { to: '/users', label: 'ユーザー' },
+]
 
 // ログイン後の画面共通のヘッダー
 const AppLayout = () => {
@@ -21,11 +26,27 @@ const AppLayout = () => {
         }}
       >
         <Toolbar sx={{ gap: 2 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexGrow: 1 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <TaskAltIcon color="primary" />
             <Typography variant="h6" component="div" noWrap sx={{ fontWeight: 700 }}>
               Task Manager
             </Typography>
+          </Stack>
+          <Stack component="nav" direction="row" spacing={0.5} sx={{ flexGrow: 1, ml: 2 }}>
+            {NAV_ITEMS.map((item) => (
+              <Button
+                key={item.to}
+                component={NavLink}
+                to={item.to}
+                color="inherit"
+                sx={{
+                  color: 'text.secondary',
+                  '&.active': { color: 'primary.main', bgcolor: 'rgba(79, 70, 229, 0.08)' },
+                }}
+              >
+                {item.label}
+              </Button>
+            ))}
           </Stack>
           {user && (
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>

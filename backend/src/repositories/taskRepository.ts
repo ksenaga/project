@@ -94,3 +94,19 @@ export const findAssigneeIdsWithStatus = async (
     .whereNull('deleted_at')
   return rows.map((row) => row.user_id)
 }
+
+// 指定したステータスのタスクを担当しているか(削除済みのタスク・プロジェクトは除く)
+export const existsByAssigneeWithStatus = async (
+  userId: number,
+  statuses: readonly TaskStatus[],
+  conn: Conn = db,
+): Promise<boolean> => {
+  const row = await conn('tasks as t')
+    .join('projects as p', 'p.id', 't.project_id')
+    .where('t.user_id', userId)
+    .whereIn('t.status', statuses)
+    .whereNull('t.deleted_at')
+    .whereNull('p.deleted_at')
+    .first('t.id')
+  return row !== undefined
+}

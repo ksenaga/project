@@ -6,6 +6,7 @@ import AppLayout from './components/AppLayout'
 import LoginPage from './pages/LoginPage'
 import ProjectPage from './pages/ProjectPage'
 import TaskBoardPage from './pages/TaskBoardPage'
+import UserPage from './pages/UserPage'
 
 const LoginRoute = () => {
   const { user, loading, setUser } = useAuth()
@@ -34,6 +35,7 @@ const App = () => {
             <Route element={<AppLayout />}>
               <Route path="/projects" element={<ProjectPage />} />
               <Route path="/projects/:projectId/tasks" element={<TaskBoardPage />} />
+              <Route path="/users" element={<UserPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/projects" replace />} />
