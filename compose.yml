@@ -44,3 +44,36 @@ services:
     ports:
       - '8080:3000'
     restart: unless-stopped
+
+  # 開発用のアプリ(Dockerfile.dev)。ソースをマウントし、保存するとすぐ反映される(ホットリロード)
+  # 画面は http://localhost:5173(/api は同じコンテナのバックエンド 3000 に転送される)
+  # docker compose --profile dev up -d --build で起動する(Mac で npm run dev を動かしているときは止めてから)
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: app-project-dev
+    profiles: ['dev']
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+      # node_modules は Mac のものを使わず、コンテナ専用(Linux 用)を名前付きボリュームに置く
+      - backend_node_modules:/app/backend/node_modules
+      - frontend_node_modules:/app/frontend/node_modules
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=project
+      - JWT_SECRET=${JWT_SECRET:-}
+    ports:
+      - '3000:3000'
+      - '5173:5173'
+
+volumes:
+  backend_node_modules:
+  frontend_node_modules:

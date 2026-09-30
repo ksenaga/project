@@ -4,5 +4,5 @@
 **/.env
 **/.DS_Store
 .git
-docker
+docker/mysql
 plan

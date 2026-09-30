@@ -217,6 +217,27 @@ docker compose --profile app up -d --build
 * 止めるときは `docker compose --profile app down`
 * Cookie に Secure を付けるため、localhost 以外で公開するときは HTTPS にする
 
+### コンテナで開発する（ホットリロード）
+
+Mac に Node.js を入れなくても、コンテナ（`app-project-dev`）の中でフロントエンドとバックエンドを動かして開発できる。
+ソースをマウントしているので、保存するとすぐ反映される（画面は再読み込みなしで更新、バックエンドは自動で再起動）。
+
+```bash
+# 初回のみ: プロジェクト直下の .env を用意する（上の「コンテナで動かす」と同じ）
+
+# 起動（DB も一緒に起動する）。Mac で npm run dev を動かしているときは止めてから
+docker compose --profile dev up -d --build
+
+# ログを見る
+docker logs -f app-project-dev
+```
+
+ブラウザで http://localhost:5173 を開く（/api は同じコンテナのバックエンドに転送される）。
+
+* 起動するたびに、未適用のマイグレーションと初期データ（管理者）を反映する
+* node_modules はコンテナ専用（Linux 用）で、名前付きボリュームに置く。package-lock.json が変わったときだけ入れ直す
+* 止めるときは `docker compose --profile dev down`
+
 ### マイグレーション
 
 | コマンド（backend で実行） | 内容 |

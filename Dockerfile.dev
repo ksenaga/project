@@ -1,0 +1,9 @@
+# 開発用のアプリのコンテナ(app-project-dev)。ソースはコンテナに入れず、compose でマウントする
+# フロントエンド(Vite)とバックエンド(tsx watch)を同じコンテナで動かし、保存するとすぐ反映される
+FROM node:24-slim
+ENV TZ=Asia/Tokyo
+WORKDIR /app
+COPY docker/app/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
+RUN chmod +x /usr/local/bin/dev-entrypoint.sh
+EXPOSE 3000 5173
+CMD ["dev-entrypoint.sh"]
