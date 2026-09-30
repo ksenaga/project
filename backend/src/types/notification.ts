@@ -3,6 +3,7 @@ export const NOTIFICATION_TYPE = {
   TASK_ASSIGNEE: 'task_assignee', // タスクの担当者になった
   TASK_REVIEW: 'task_review', // タスクがレビュー中になった(管理者・担当リーダーへ)
   TASK_CANCEL_REQUEST: 'task_cancel_request', // 一般ユーザーからの中止依頼(管理者・担当リーダーへ)
+  TASK_COMMENT: 'task_comment', // 担当しているタスクにコメントが付いた(担当者へ)
 } as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE]

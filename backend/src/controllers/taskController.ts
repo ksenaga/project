@@ -117,11 +117,25 @@ export const create = async (req: Request, res: Response) => {
   res.status(201).json(await taskService.create(projectId, input, req.user!))
 }
 
+// 同時編集の確認に使う、編集を始めたときの updated_at(ISO 8601 か null。送らなければ確認しない)
+const parseExpectedUpdatedAt = (body: unknown): string | null | undefined => {
+  const value = parseBody(body).expected_updated_at
+  if (value === undefined || value === null) return value
+  if (typeof value !== 'string' || Number.isNaN(new Date(value).getTime())) throw badRequest()
+  return value
+}
+
 // PATCH /api/projects/:projectId/tasks/:id
 export const update = async (req: Request, res: Response) => {
   const { projectId, id } = params(req)
+  const expectedUpdatedAt = parseExpectedUpdatedAt(req.body)
   const input = parseTaskInput(req.body, { partial: true })
-  res.json(await taskService.update(projectId, id!, input, req.user!))
+  res.json(await taskService.update(projectId, id!, input, req.user!, { expectedUpdatedAt }))
+}
+
+// GET /api/tasks/:id(タスク ID から、タスクがあるプロジェクトを調べる)
+export const location = async (req: Request, res: Response) => {
+  res.json(await taskService.findLocation(parseId(req.params.id), req.user!))
 }
 
 const REASON_MAX_LENGTH = 200

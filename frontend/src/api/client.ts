@@ -1,9 +1,12 @@
 export class ApiError extends Error {
   readonly status: number
+  // サーバーがエラーの種類を付けたとき(例: TASK_UPDATED_BY_OTHERS)
+  readonly code?: string
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message)
     this.status = status
+    this.code = code
   }
 }
 
@@ -27,8 +30,8 @@ export const request = async <T>(path: string, { method = 'GET', body }: Request
   }
 
   if (!res.ok) {
-    const data: { message?: string } | null = await res.json().catch(() => null)
-    throw new ApiError(res.status, data?.message ?? 'エラーが発生しました')
+    const data: { message?: string; code?: string } | null = await res.json().catch(() => null)
+    throw new ApiError(res.status, data?.message ?? 'エラーが発生しました', data?.code)
   }
   if (res.status === 204) return undefined as T
   return (await res.json()) as T

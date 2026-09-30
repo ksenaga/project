@@ -1,4 +1,4 @@
-import { useState, type SubmitEvent } from 'react'
+import { useEffect, useRef, useState, type SubmitEvent } from 'react'
 import {
   Alert,
   Autocomplete,
@@ -17,7 +17,13 @@ import {
 import type { BoardList } from '../../api/boardLists'
 import type { Screen } from '../../api/screens'
 import type { Tag, TagRef } from '../../api/tags'
-import type { Task, TaskInput } from '../../api/tasks'
+import { ApiError } from '../../api/client'
+import {
+  TASK_UPDATED_BY_OTHERS,
+  type Task,
+  type TaskInput,
+  type TaskUpdateInput,
+} from '../../api/tasks'
 import type { Member } from '../../api/users'
 import { CREATABLE_STATUSES, type TaskStatus } from '../../constants/taskStatus'
 import type { LoginUser } from '../../pages/LoginPage'
@@ -45,7 +51,9 @@ type Props = {
   // 新規作成時のステータス(押した列の「＋」)
   defaultStatus?: TaskStatus
   onClose: () => void
-  onSubmit: (input: Partial<TaskInput>) => Promise<void>
+  onSubmit: (input: TaskUpdateInput) => Promise<void>
+  // ほかの人が先に更新していたとき、最新の内容を開く(編集のみ)
+  onOpenLatest?: () => void
 }
 
 const toNullable = (value: string) => (value.trim() === '' ? null : value.trim())
@@ -61,6 +69,7 @@ const TaskFormDialog = ({
   defaultStatus,
   onClose,
   onSubmit,
+  onOpenLatest,
 }: Props) => {
   const isEdit = task !== undefined
   // コピーでは Git URL・期限・修正内容・修正理由・メモは引き継がない
@@ -98,6 +107,13 @@ const TaskFormDialog = ({
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // ほかの人が先に更新していた(このまま保存すると上書きしてしまうので、保存できないようにする)
+  const [conflicted, setConflicted] = useState(false)
+  // 保存ボタンは下にあるので、エラーが出たら上のエラー表示が見えるところまでスクロールする
+  const errorRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [error])
 
   // 担当者がメンバーから外れていても、現在の担当者は選択肢に残す
   const assigneeOptions = [
@@ -143,7 +159,7 @@ const TaskFormDialog = ({
       git: toNullable(git),
       memo: toNullable(memo),
     }
-    const input: Partial<TaskInput> = limited
+    const fields: Partial<TaskInput> = limited
       ? common
       : {
           ...common,
@@ -155,11 +171,17 @@ const TaskFormDialog = ({
           screen_id: screenId as number,
         }
 
+    // 編集では、編集を始めたときの更新日時を送る(ほかの人が先に更新していたら保存されない)
+    const input: TaskUpdateInput = isEdit
+      ? { ...fields, expected_updated_at: task.updated_at }
+      : fields
+
     setSaving(true)
     setError(null)
     try {
       await onSubmit(input)
     } catch (err) {
+      if (err instanceof ApiError && err.code === TASK_UPDATED_BY_OTHERS) setConflicted(true)
       setError((err as Error).message)
       setSaving(false)
     }
@@ -173,7 +195,21 @@ const TaskFormDialog = ({
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            {error && <Alert severity="error">{error}</Alert>}
+            {error && (
+              <Alert
+                ref={errorRef}
+                severity={conflicted ? 'warning' : 'error'}
+                action={
+                  conflicted && onOpenLatest ? (
+                    <Button color="inherit" size="small" onClick={onOpenLatest}>
+                      最新の内容を開く
+                    </Button>
+                  ) : undefined
+                }
+              >
+                {error}
+              </Alert>
+            )}
             {copyFrom && (
               <Alert severity="info">
                 「{copyFrom.title}」の内容をコピーしました。Git
@@ -427,7 +463,7 @@ const TaskFormDialog = ({
           <Button onClick={onClose} disabled={saving} color="inherit">
             キャンセル
           </Button>
-          <Button type="submit" variant="contained" loading={saving}>
+          <Button type="submit" variant="contained" loading={saving} disabled={conflicted}>
             {isEdit ? '保存' : '作成'}
           </Button>
         </DialogActions>

@@ -14,6 +14,7 @@ import {
 } from '@mui/material'
 import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined'
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined'
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined'
 import FolderSharedOutlinedIcon from '@mui/icons-material/FolderSharedOutlined'
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
 import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined'
@@ -34,6 +35,7 @@ const ICONS = {
   task_assignee: AssignmentIndOutlinedIcon,
   task_review: RateReviewOutlinedIcon,
   task_cancel_request: BlockOutlinedIcon,
+  task_comment: ChatBubbleOutlineIcon,
 }
 
 // ヘッダーのベル。未読の件数を表示し、クリックで通知の一覧を開く。

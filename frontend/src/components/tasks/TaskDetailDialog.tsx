@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Link,
   Stack,
   Tooltip,
@@ -16,6 +17,7 @@ import {
 } from '@mui/material'
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined'
 import { fetchTask, requestTaskCancel, type Task } from '../../api/tasks'
 import type { BoardList } from '../../api/boardLists'
 import type { Tag } from '../../api/tags'
@@ -28,6 +30,7 @@ import {
 } from '../../constants/taskStatus'
 import type { LoginUser } from '../../pages/LoginPage'
 import { formatDate } from '../../utils/date'
+import { taskLink } from '../../utils/taskLink'
 import { canDeleteTask, canEditTask } from '../../utils/taskPermission'
 import LinkifiedText from '../LinkifiedText'
 import TagLabel from '../TagLabel'
@@ -99,6 +102,7 @@ const TaskDetailDialog = ({
 }: Props) => {
   const [task, setTask] = useState<Task | null>(null)
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   // 中止依頼を送ったとき(通知した人数)
   const [cancelSent, setCancelSent] = useState<number | null>(null)
   // 一般ユーザーは、完了・対応中止でないタスクの中止を管理者・リーダーに依頼できる
@@ -177,12 +181,41 @@ const TaskDetailDialog = ({
                 fontWeight: 600,
               }}
             />
-            <Typography
-              variant="h6"
-              component="p"
-              sx={{ fontWeight: 700, wordBreak: 'break-word' }}
-            >
-              {task.title}
+            {/* タスク名の横に、このタスクのリンクをコピーするボタン */}
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+              <Typography
+                variant="h6"
+                component="p"
+                sx={{ fontWeight: 700, wordBreak: 'break-word' }}
+              >
+                {task.title}
+              </Typography>
+              <Tooltip
+                title={
+                  linkCopied
+                    ? 'コピーしました'
+                    : 'リンクをコピー（コメントに貼るとタスク名で表示されます）'
+                }
+              >
+                <IconButton
+                  size="small"
+                  aria-label="タスクのリンクをコピー"
+                  onClick={async () => {
+                    await navigator.clipboard
+                      .writeText(`${window.location.origin}${taskLink(task.id)}`)
+                      .catch(() => {})
+                    setLinkCopied(true)
+                  }}
+                  onMouseLeave={() => setLinkCopied(false)}
+                  sx={{ flexShrink: 0 }}
+                >
+                  <LinkOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+            {/* タスク ID。コメントに「#ID」と書いても、このタスクへのリンクになる */}
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mt: 0.25 }}>
+              #{task.id}
             </Typography>
           </DialogTitle>
           {/* 左に詳細、右にコメント */}

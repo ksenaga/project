@@ -63,6 +63,7 @@ import {
   type TaskFilter,
   type TaskInput,
   type TaskSummary,
+  type TaskUpdateInput,
 } from '../api/tasks'
 import { useAuth } from '../auth/AuthContext'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
@@ -368,7 +369,7 @@ const TaskBoardPage = () => {
     reload()
   }
 
-  const handleSubmit = async (input: Partial<TaskInput>) => {
+  const handleSubmit = async (input: TaskUpdateInput) => {
     try {
       if (dialog?.type === 'edit') {
         await updateTask(projectId, dialog.task.id, input)
@@ -633,6 +634,15 @@ const TaskBoardPage = () => {
             defaultStatus={dialog.type === 'create' ? dialog.status : TASK_STATUS.TODO}
             onClose={() => setDialog(null)}
             onSubmit={handleSubmit}
+            // ほかの人が先に更新していたら、最新の詳細を開き直す
+            onOpenLatest={
+              dialog.type === 'edit'
+                ? () => {
+                    setDialog({ type: 'detail', taskId: dialog.task.id })
+                    reload()
+                  }
+                : undefined
+            }
           />
         )}
       {dialog?.type === 'screens' && (

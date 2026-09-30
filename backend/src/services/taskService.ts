@@ -64,6 +64,48 @@ const ensureScreenInProject = async (projectId: number, screenId: number | undef
   }
 }
 
+// 日時(ISO 8601)が同じか。null 同士も同じとみなす
+const sameTime = (a: string | null, b: string | null) =>
+  a === null || b === null ? a === b : new Date(a).getTime() === new Date(b).getTime()
+
+const names = (items: { name: string }[], empty: string) =>
+  items.length === 0 ? empty : items.map((item) => item.name).join('、')
+
+// 変更前後で違う項目を「項目: 変更前 → 変更後」の形で並べる。長い文章の項目は項目名だけ
+const describeChanges = (before: Task, after: Task): string[] => {
+  const changes: string[] = []
+  const diff = (label: string, from: string, to: string) => {
+    if (from !== to) changes.push(`${label}: ${from} → ${to}`)
+  }
+  diff('タイトル', `「${before.title}」`, `「${after.title}」`)
+  diff('担当者', names(before.assignees, 'なし'), names(after.assignees, 'なし'))
+  diff('期限', before.deadline.replaceAll('-', '/'), after.deadline.replaceAll('-', '/'))
+  diff('画面名', before.screen?.name ?? '未設定', after.screen?.name ?? '未設定')
+  diff('タグ', names(before.tags, 'なし'), names(after.tags, 'なし'))
+  const texts: [keyof Task, string][] = [
+    ['detail', '説明'],
+    ['modified', '修正内容'],
+    ['reason', '修正理由'],
+    ['git', 'Git URL'],
+    ['memo', 'メモ'],
+  ]
+  for (const [key, label] of texts) {
+    if ((before[key] ?? null) !== (after[key] ?? null)) changes.push(`${label}を変更`)
+  }
+  return changes
+}
+
+const logChanges = async (before: Task, after: Task, user: AuthUser) => {
+  const changes = describeChanges(before, after)
+  if (changes.length === 0) return
+  await commentRepository.create(
+    after.id,
+    user.id,
+    COMMENT_TYPE.CHANGE,
+    [`${user.name}さんがタスクを変更しました`, ...changes.map((c) => `・${c}`)].join('\n'),
+  )
+}
+
 // タスクが入っているリストの名前(追加したリストはそのリスト名、既存の5つはステータス)
 const listName = (task: Task, lists: { id: number; name: string }[]) =>
   task.list_id !== null
@@ -120,18 +162,36 @@ export const create = async (
     return taskId
   })
   const created = await getTask(projectId, id)
+  await commentRepository.create(
+    id,
+    user.id,
+    COMMENT_TYPE.CREATE,
+    `${user.name}さんがタスクを作成しました`,
+  )
   await notificationService.notifyAssigned(projectId, created, input.user_ids, user)
   return created
 }
 
+// ほかの人が先に更新していたときのエラー(画面は code で見分ける)
+const updatedByOthers = () =>
+  conflict(
+    'ほかの人が先にこのタスクを更新しました。最新の内容を確認してから、もう一度編集してください',
+    'TASK_UPDATED_BY_OTHERS',
+  )
+
+// expectedUpdatedAt: 編集を始めたときの updated_at。渡すと、ほかの人が先に更新していたら保存しない
 export const update = async (
   projectId: number,
   id: number,
   input: Partial<TaskInput>,
   user: AuthUser,
+  { expectedUpdatedAt }: { expectedUpdatedAt?: string | null } = {},
 ): Promise<Task> => {
   await ensureProjectAccess(projectId, user)
   const current = await getTask(projectId, id)
+  if (expectedUpdatedAt !== undefined && !sameTime(current.updated_at, expectedUpdatedAt)) {
+    throw updatedByOthers()
+  }
 
   if (current.status === TASK_STATUS.DONE) throw conflict('完了したタスクは編集できません')
 
@@ -176,8 +236,21 @@ export const update = async (
 
   const { userIds, tagIds, fields } = splitInput(input)
   await db.transaction(async (trx) => {
-    const count = await taskRepository.update(projectId, id, fields, user.id, trx)
-    if (count === 0) throw taskNotFound()
+    // 確認と保存の間にほかの人が更新した場合も、ここで弾く
+    const count = await taskRepository.update(
+      projectId,
+      id,
+      fields,
+      user.id,
+      trx,
+      expectedUpdatedAt,
+    )
+    if (count === 0) {
+      if (expectedUpdatedAt !== undefined && (await taskRepository.findById(projectId, id))) {
+        throw updatedByOthers()
+      }
+      throw taskNotFound()
+    }
     if (userIds !== undefined) await taskRepository.replaceAssignees(id, userIds, trx)
     if (tagIds !== undefined) await taskRepository.replaceTags(id, tagIds, trx)
   })
@@ -192,6 +265,8 @@ export const update = async (
 
   // 別のリストへ移動したら、誰がどこからどこへ移動したかを自動でコメントに残す
   await logMove(projectId, current, updated, user)
+  // ほかの項目を変えたら、変更履歴として自動でコメントに残す
+  await logChanges(current, updated, user)
 
   // レビュー中になったら、管理者と担当リーダーへ通知する
   const isReview = (task: Task) => task.status === TASK_STATUS.REVIEW && task.list_id === null
@@ -227,4 +302,12 @@ export const remove = async (projectId: number, id: number, user: AuthUser): Pro
   await ensureProjectAccess(projectId, user)
   const count = await taskRepository.softDelete(projectId, id, user.id)
   if (count === 0) throw taskNotFound()
+}
+
+// タスク ID から、そのタスクがあるプロジェクトを調べる(コメントの「#ID」から開くため)
+export const findLocation = async (id: number, user: AuthUser) => {
+  const location = await taskRepository.findLocation(id)
+  if (!location) throw taskNotFound()
+  await ensureProjectAccess(location.project_id, user)
+  return location
 }

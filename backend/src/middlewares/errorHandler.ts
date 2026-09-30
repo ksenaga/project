@@ -7,14 +7,11 @@ export const notFoundHandler = (_req: Request, _res: Response, next: NextFunctio
 }
 
 // Express 5 では async 関数内で throw したエラーもここに届く
-export const errorHandler = (
-  err: unknown,
-  _req: Request,
-  res: Response,
-  _next: NextFunction,
-) => {
+export const errorHandler = (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof HttpError) {
-    res.status(err.status).json({ message: err.message })
+    res
+      .status(err.status)
+      .json(err.code ? { message: err.message, code: err.code } : { message: err.message })
     return
   }
   // JSON の形式が壊れているリクエスト

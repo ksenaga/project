@@ -96,16 +96,14 @@ export const TaskCardContent = ({
           <EventOutlinedIcon sx={{ fontSize: 14 }} />
           {formatDate(task.deadline)}
         </Box>
+        {/* コメントがあるときはアイコンだけ出す(件数は出さない) */}
         {task.comment_count > 0 && (
-          <Stack
-            direction="row"
-            spacing={0.25}
-            sx={{ alignItems: 'center', color: 'text.secondary', ml: 1, mr: 'auto' }}
-            aria-label={`コメント${task.comment_count}件`}
-          >
-            <ChatBubbleOutlineIcon sx={{ fontSize: 14 }} />
-            <Typography variant="caption">{task.comment_count}</Typography>
-          </Stack>
+          <Tooltip title="コメントあり">
+            <ChatBubbleOutlineIcon
+              aria-label="コメントあり"
+              sx={{ fontSize: 14, color: 'text.secondary', ml: 1, mr: 'auto' }}
+            />
+          </Tooltip>
         )}
         <Tooltip title={`担当: ${assigneeNames}`}>
           <Stack direction="row" sx={{ alignItems: 'center' }}>

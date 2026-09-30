@@ -130,6 +130,36 @@ export const notifyCancelRequested = async (
   return targets.length
 }
 
+// 担当しているタスクにコメントが付いたら、担当者へ(書いた本人は除く)
+export const notifyCommented = (
+  projectId: number,
+  task: { id: number; title: string; assignees: { id: number }[] },
+  body: string,
+  actor: AuthUser,
+) =>
+  safely(async () => {
+    const targets = others(
+      task.assignees.map((assignee) => assignee.id),
+      actor,
+    )
+    if (targets.length === 0) return
+    const name = await projectName(projectId)
+    const excerpt = truncate(body.replace(/\s+/g, ' '), 60)
+    await notificationRepository.createMany(
+      targets.map((userId) => ({
+        user_id: userId,
+        type: NOTIFICATION_TYPE.TASK_COMMENT,
+        project_id: projectId,
+        task_id: task.id,
+        actor_id: actor.id,
+        message: truncate(
+          `${actor.name}さんがタスク「${task.title}」（${name}）にコメントしました: ${excerpt}`,
+          MESSAGE_MAX_LENGTH,
+        ),
+      })),
+    )
+  })
+
 // ログイン中のユーザーの通知(新しい順)と未読の件数
 export const list = async (
   user: AuthUser,

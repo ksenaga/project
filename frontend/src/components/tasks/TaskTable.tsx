@@ -258,12 +258,13 @@ const COLUMNS: Column[] = [
     label: 'コメント',
     width: 110,
     sortValue: (task) => task.comment_count,
+    // コメントがあるときはアイコンだけ出す(件数は出さない)
     render: (task) =>
       task.comment_count > 0 ? (
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>
-          <ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />
-          <Typography variant="body2">{task.comment_count}</Typography>
-        </Stack>
+        <ChatBubbleOutlineIcon
+          aria-label="コメントあり"
+          sx={{ fontSize: 16, color: 'text.secondary', display: 'block' }}
+        />
       ) : (
         <Empty />
       ),

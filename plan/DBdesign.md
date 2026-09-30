@@ -144,8 +144,8 @@ updated_at	datetime(3)
 
 DBのコメント
 ・tags / task_tags / notifications / task_comments はテーブルと列に DB のコメントを付けている(それ以外のテーブルは未設定)
-・task_comments.type:comment(人が書いたコメント)/ move(タスクを移動したときの自動コメント。誰がどこからどこへ移動したかのログ代わり。削除できない)
-・notifications.type:project_member(プロジェクトのメンバーに追加された)/ task_assignee(タスクの担当者になった)/ task_review(タスクがレビュー中になった)/ task_cancel_request(中止依頼)。message は通知したときの名前で作った文章。read_at が NULL なら未読
+・task_comments.type:comment(人が書いたコメント)/ create(タスクを作成したときの自動コメント)/ move(タスクを移動したときの自動コメント。誰がどこからどこへ移動したかのログ代わり)/ change(項目を変更したときの自動コメント。変更内容を1行ずつ記録)。自動コメントは削除できない
+・notifications.type:project_member(プロジェクトのメンバーに追加された)/ task_assignee(タスクの担当者になった)/ task_review(タスクがレビュー中になった)/ task_cancel_request(中止依頼)/ task_comment(担当しているタスクにコメントが投稿された)。message は通知したときの名前で作った文章。read_at が NULL なら未読
 
 テーブルの管理
 ・テーブルは Knex のマイグレーションで作成・変更する(backend/db/migrations)

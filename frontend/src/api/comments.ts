@@ -3,7 +3,8 @@ import { request } from './client'
 
 export type Comment = {
   id: number
-  type: 'comment' | 'move' // move はタスクを移動したときの自動コメント(削除できない)
+  // comment 以外は自動で記録されたもの(削除できない)。move:移動 / create:作成 / change:変更
+  type: 'comment' | 'move' | 'create' | 'change'
   body: string
   user: Member // 書いた人(自動コメントは操作した人)
   created_at: string // ISO 8601

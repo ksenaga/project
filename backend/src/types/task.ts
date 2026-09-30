@@ -69,6 +69,8 @@ export type TaskSummary = {
 
 // 詳細で返すタスク
 export type Task = TaskSummary & {
+  // 最後に更新した日時(ISO 8601。一度も更新していなければ null)。同時編集の確認に使う
+  updated_at: string | null
   detail: string
   modified: string | null
   reason: string | null

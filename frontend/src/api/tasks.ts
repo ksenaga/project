@@ -20,6 +20,8 @@ export type TaskSummary = {
 
 // 詳細で返るタスク
 export type Task = TaskSummary & {
+  // 最後に更新した日時(一度も更新していなければ null)。同時編集の確認に使う
+  updated_at: string | null
   detail: string
   modified: string | null
   reason: string | null
@@ -100,8 +102,18 @@ export const createTask = (projectId: number, input: TaskInput) =>
   request<Task>(base(projectId), { method: 'POST', body: input })
 
 // 送った項目だけ更新される
-export const updateTask = (projectId: number, id: number, input: Partial<TaskInput>) =>
+// 編集で送る値。expected_updated_at に編集を始めたときの updated_at を入れると、
+// ほかの人が先に更新していたら保存されない(ApiError の code が TASK_UPDATED_BY_OTHERS)
+export type TaskUpdateInput = Partial<TaskInput> & { expected_updated_at?: string | null }
+
+export const TASK_UPDATED_BY_OTHERS = 'TASK_UPDATED_BY_OTHERS'
+
+export const updateTask = (projectId: number, id: number, input: TaskUpdateInput) =>
   request<Task>(`${base(projectId)}/${id}`, { method: 'PATCH', body: input })
+
+// タスク ID から、そのタスクがあるプロジェクトを調べる(コメントの「#ID」から開くため)
+export const fetchTaskLocation = (id: number) =>
+  request<{ id: number; project_id: number; title: string }>(`/tasks/${id}`)
 
 export const deleteTask = (projectId: number, id: number) =>
   request<void>(`${base(projectId)}/${id}`, { method: 'DELETE' })

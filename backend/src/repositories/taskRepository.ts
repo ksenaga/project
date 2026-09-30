@@ -23,7 +23,15 @@ const summaryColumns = [
   's.name as screen_name',
 ]
 
-const detailColumns = [...summaryColumns, 't.detail', 't.modified', 't.reason', 't.git', 't.memo']
+const detailColumns = [
+  ...summaryColumns,
+  't.updated_at',
+  't.detail',
+  't.modified',
+  't.reason',
+  't.git',
+  't.memo',
+]
 
 type Row = Omit<TaskSummary, 'assignees' | 'screen'> & {
   screen_id: number | null
@@ -70,6 +78,12 @@ const toTasks = async <T extends Row>(rows: T[]) => {
   ])
   return rows.map(({ screen_id, screen_name, ...rest }) => ({
     ...rest,
+    // 詳細の項目を取ったときだけ updated_at がある(ISO 8601 にそろえる)
+    ...('updated_at' in rest && {
+      updated_at: rest.updated_at
+        ? new Date(rest.updated_at as unknown as Date).toISOString()
+        : null,
+    }),
     assignees: assignees.get(rest.id) ?? [],
     tags: tags.get(rest.id) ?? [],
     comment_count: commentCounts.get(rest.id) ?? 0,
@@ -173,17 +187,26 @@ export const replaceTags = async (taskId: number, tagIds: number[], conn: Conn =
   }
 }
 
-// 更新した件数を返す(0 なら対象が存在しない)
+// 更新した件数を返す(0 なら対象が存在しない、または expectedUpdatedAt と一致しない)。
+// expectedUpdatedAt を渡すと、最後の更新日時がその値のときだけ更新する(同時編集の確認)
 export const update = async (
   projectId: number,
   id: number,
   fields: Partial<TaskFields>,
   userId: number,
   conn: Conn = db,
+  expectedUpdatedAt?: string | null,
 ): Promise<number> =>
   conn('tasks')
     .where({ id, project_id: projectId })
     .whereNull('deleted_at')
+    .modify((q) => {
+      if (expectedUpdatedAt !== undefined) {
+        q.whereRaw('updated_at <=> ?', [
+          expectedUpdatedAt === null ? null : new Date(expectedUpdatedAt),
+        ])
+      }
+    })
     .update({ ...fields, updater: userId, updated_at: db.fn.now(3) })
 
 // 論理削除。削除した件数を返す
@@ -243,3 +266,15 @@ export const clearListOfDeletedTasks = async (listId: number, conn: Conn = db) =
     .whereNotNull('deleted_at')
     .update({ list_id: null })
 }
+
+// タスクがどのプロジェクトにあるか(削除済みのタスク・プロジェクトは除く)
+export const findLocation = async (
+  id: number,
+): Promise<{ id: number; project_id: number; title: string } | undefined> =>
+  db('tasks as t')
+    .join('projects as p', 'p.id', 't.project_id')
+    .select('t.id', 't.project_id', 't.title')
+    .where('t.id', id)
+    .whereNull('t.deleted_at')
+    .whereNull('p.deleted_at')
+    .first()

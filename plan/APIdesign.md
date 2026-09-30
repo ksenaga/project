@@ -23,6 +23,7 @@ API設計
 タスク編集	PATCH	/api/projects/{project_id}/tasks/{id}
 タスク削除	DELETE	/api/projects/{project_id}/tasks/{id}
 中止依頼	POST	/api/projects/{project_id}/tasks/{id}/cancel-request
+タスクの場所を調べる	GET	/api/tasks/{id}
 コメント一覧取得	GET	/api/projects/{project_id}/tasks/{task_id}/comments
 コメント投稿	POST	/api/projects/{project_id}/tasks/{task_id}/comments
 コメント削除	DELETE	/api/projects/{project_id}/tasks/{task_id}/comments/{id}
@@ -177,15 +178,21 @@ Request
 
 【タスクのコメント】
 ※閲覧・投稿はプロジェクトメンバー(管理者は全プロジェクト)。削除は書いた本人と管理者のみ
-※タスクを別のリストへ移動すると、type:"move" の自動コメント(「◯◯さんがタスクを「A」から「B」に移動しました」)が記録される。自動コメントは削除できない
+※変更履歴として、次の自動コメントが記録される。自動コメントは削除できない
+　・type:"create" タスクを作成した(「◯◯さんがタスクを作成しました」)
+　・type:"move" 別のリストへ移動した(「◯◯さんがタスクを「A」から「B」に移動しました」)
+　・type:"change" 項目を変更した(「◯◯さんがタスクを変更しました」の後に、1行ずつ「・期限: 2026-10-01 → 2026-10-15」のように変更内容。
+　　タイトル・担当者・期限・画面名・タグは変更前と変更後、説明・修正内容・修正理由・Git URL・メモは「〜を変更」とだけ書く)
+※コメントを投稿すると、タスクの担当者に通知する(書いた本人を除く)
+※本文の「#12」はタスク12への、「http(s)://〜」はそのURLへのリンクとして画面に表示する(別タブで開く)
 コメント一覧取得 GET /api/projects/{project_id}/tasks/{task_id}/comments
 ※古い順
 [
 	{
 		"id":1,
-		"type":"comment",	※comment / move
+		"type":"comment",	※comment / create / move / change
 		"body":"原因を調査します",
-		"user":{"id":7,"name":"t_member"},	※書いた人(自動コメントは移動した人)
+		"user":{"id":7,"name":"t_member"},	※書いた人(自動コメントは操作した人)
 		"created_at":"2026-09-30T03:21:48.042Z"
 	}
 ]
@@ -196,6 +203,16 @@ Request
 ※投稿したコメント1件を返す
 コメント削除 DELETE /api/projects/{project_id}/tasks/{task_id}/comments/{id}
 (なし)
+
+【タスクの場所】
+タスクの場所を調べる GET /api/tasks/{id}
+※コメントの「#ID」やタスクのURL(/tasks/{id})から、そのタスクがあるプロジェクトを開くために使う。見られるのはプロジェクトメンバー(管理者は全プロジェクト)
+Response
+{
+	"id":9,
+	"project_id":3,
+	"title":"関連する別のタスク"
+}
 
 【タスクの中止依頼】
 中止依頼 POST /api/projects/{project_id}/tasks/{id}/cancel-request
@@ -333,7 +350,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 			"name":"ログイン画面"
 		},
 		"list_id":null,	※追加したリストに入っているときはそのリストの ID(status は "対応中")
-		"comment_count":2	※人が書いたコメントの数(移動の自動コメントは数えない)
+		"comment_count":2	※人が書いたコメントの数(自動コメントは数えない)
 	},
 	{}
 ]
@@ -341,10 +358,13 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 タスク詳細 GET /api/projects/{project_id}/tasks/{id}
 タスク編集 PATCH /api/projects/{project_id}/tasks/{id}
 ※3つとも同じ形。未入力の任意項目は null
+※タスク編集では "expected_updated_at" に、編集を始めたときの updated_at を送れる(任意)。
+　その後ほかの人が先に更新していたら保存せず、409 と "code":"TASK_UPDATED_BY_OTHERS" を返す(ボードでの移動では送らない)
 {
 	"id":1,
 	"title":"タイトル",
 	"status":"対応中",
+	"updated_at":"2026-09-30T05:12:31.000Z",	※最後に更新した日時。一度も更新していなければ null
 	"deadline":"2027-01-01",
 	"detail":"タスクの説明",
 	"modified":null,
@@ -383,6 +403,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 　・タスクの担当者になった(作成・編集・コピー)→ 担当者になった人
 　・タスクがレビュー中になった → 全管理者と、そのプロジェクトの担当リーダー
 　・一般ユーザーがタスクの中止を依頼した → 全管理者と、そのプロジェクトの担当リーダー
+　・タスクにコメントが投稿された → そのタスクの担当者
 　・操作した本人には通知しない。通知の作成に失敗しても、元の操作は取り消さない
 通知一覧取得 GET /api/notifications
 ※新しい順に30件。削除されたプロジェクトの通知は出さない
@@ -390,7 +411,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 	"notifications":[
 		{
 			"id":1,
-			"type":"task_review",	※project_member / task_assignee / task_review / task_cancel_request
+			"type":"task_review",	※project_member / task_assignee / task_review / task_cancel_request / task_comment
 			"project_id":1,
 			"task_id":5,	※プロジェクトの通知は null
 			"message":"t_memberさんがタスク「ログイン修正」(プロジェクト)をレビュー中にしました",
@@ -491,9 +512,10 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 (なし)
 
 【エラー】
-エラー時は message を返す
+エラー時は message を返す。画面で見分けが必要なエラーには code も付ける
 {
-	"message":"エラーメッセージ"
+	"message":"エラーメッセージ",
+	"code":"TASK_UPDATED_BY_OTHERS"	※付くときだけ
 }
 
 400 不正リクエスト
@@ -530,6 +552,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 409 Conflict
 ・"未完了のタスクを担当しているメンバーはプロジェクトから外せません"(プロジェクト編集)
 ・"完了したタスクは編集できません"(タスク編集)
+・"ほかの人が先にこのタスクを更新しました。最新の内容を確認してから、もう一度編集してください"(タスク編集。code: TASK_UPDATED_BY_OTHERS)
 ・"このユーザー名は既に使われています"(ユーザー作成・編集)
 ・"この画面名は既に登録されています"(画面名追加・編集)
 ・"同じ名前のリストが既にあります"(リスト追加・名前の変更)
@@ -578,7 +601,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 失敗 401 or 403 or 404
 タスク編集 PATCH /api/projects/{project_id}/tasks/{id}
 成功 200
-失敗 400 or 401 or 403(一般ユーザーが他人のタスク・許可されない項目やステータスを変更) or 404 or 409(完了したタスク)
+失敗 400 or 401 or 403(一般ユーザーが他人のタスク・許可されない項目やステータスを変更) or 404 or 409(完了したタスク・ほかの人が先に更新した)
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
 成功 204
 失敗 401 or 403(一般ユーザー) or 404
@@ -594,6 +617,9 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 中止依頼 POST /api/projects/{project_id}/tasks/{id}/cancel-request
 成功 201
 失敗 400 or 401 or 403(一般ユーザー以外・担当者でない) or 404 or 409(完了・対応中止のタスク)
+タスクの場所を調べる GET /api/tasks/{id}
+成功 200
+失敗 400 or 401 or 403(管理者以外でプロジェクトメンバーでない) or 404
 
 リスト一覧取得 GET /api/projects/{project_id}/lists
 成功 200

@@ -3,6 +3,7 @@ import * as commentRepository from '../repositories/commentRepository'
 import * as taskRepository from '../repositories/taskRepository'
 import { COMMENT_TYPE, type Comment } from '../types/comment'
 import { ROLE, type AuthUser } from '../types/user'
+import * as notificationService from './notificationService'
 import { ensureProjectAccess } from './projectAccess'
 
 // コメントの閲覧・投稿はプロジェクトメンバー(管理者は全プロジェクト)。
@@ -10,7 +11,9 @@ import { ensureProjectAccess } from './projectAccess'
 
 const ensureTask = async (projectId: number, taskId: number, user: AuthUser) => {
   await ensureProjectAccess(projectId, user)
-  if (!(await taskRepository.findById(projectId, taskId))) throw notFound('タスクが存在しません')
+  const task = await taskRepository.findById(projectId, taskId)
+  if (!task) throw notFound('タスクが存在しません')
+  return task
 }
 
 export const list = async (
@@ -28,8 +31,10 @@ export const create = async (
   body: string,
   user: AuthUser,
 ): Promise<Comment> => {
-  await ensureTask(projectId, taskId, user)
+  const task = await ensureTask(projectId, taskId, user)
   const id = await commentRepository.create(taskId, user.id, COMMENT_TYPE.COMMENT, body)
+  // 担当者へ通知する(書いた本人は除く)
+  await notificationService.notifyCommented(projectId, task, body, user)
   return (await commentRepository.findById(taskId, id))!
 }
 
