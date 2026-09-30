@@ -1,6 +1,7 @@
 import { db, type Conn } from '../db/knex'
 import {
   CLOSED_STATUSES,
+  DEADLINE_ALERT_LEVEL,
   type MyTask,
   DEADLINE_RED_MAX_DAYS,
   DEADLINE_YELLOW_MAX_DAYS,
@@ -168,13 +169,26 @@ export const findById = async (projectId: number, id: number): Promise<Task | un
   return task
 }
 
+// 期限の日付から、今の期限の色(DEADLINE_ALERT_LEVEL)を求める SQL。date は期限の列か「?」
+// (「?」のときは date を2回使うので、値も2つ渡す)
+const deadlineLevelSql = (date: string) =>
+  `CASE WHEN DATEDIFF(${date}, CURDATE()) <= ${DEADLINE_RED_MAX_DAYS} THEN ${DEADLINE_ALERT_LEVEL.RED}` +
+  ` WHEN DATEDIFF(${date}, CURDATE()) <= ${DEADLINE_YELLOW_MAX_DAYS} THEN ${DEADLINE_ALERT_LEVEL.YELLOW}` +
+  ` ELSE ${DEADLINE_ALERT_LEVEL.NONE} END`
+
+// 作成したときは、今の色を知らせた扱いにする(担当者には「担当者になった」通知が届くため)
 export const create = async (
   projectId: number,
   fields: TaskFields,
   userId: number,
   conn: Conn = db,
 ): Promise<number> => {
-  const [id] = await conn('tasks').insert({ ...fields, project_id: projectId, creater: userId })
+  const [id] = await conn('tasks').insert({
+    ...fields,
+    project_id: projectId,
+    creater: userId,
+    deadline_alert_level: db.raw(deadlineLevelSql('?'), [fields.deadline, fields.deadline]),
+  })
   return id
 }
 
@@ -216,7 +230,56 @@ export const update = async (
         ])
       }
     })
-    .update({ ...fields, updater: userId, updated_at: db.fn.now(3) })
+    .update({
+      ...fields,
+      // 期限を先に延ばしたら、知らせた色を今の色まで下げる(また近づいたときに通知するため)。
+      // 期限を早めて色が変わったときは下げないので、次の確認で通知される
+      ...(fields.deadline !== undefined && {
+        deadline_alert_level: db.raw(`LEAST(deadline_alert_level, ${deadlineLevelSql('?')})`, [
+          fields.deadline,
+          fields.deadline,
+        ]),
+      }),
+      updater: userId,
+      updated_at: db.fn.now(3),
+    })
+
+// 期限の色が、最後に知らせた色より進んだ(緑 → 黄色、黄色 → 赤)未完了のタスクと、今の色
+export const findDeadlineAlertTargets = async (): Promise<
+  { id: number; project_id: number; deadline: string; level: number }[]
+> => {
+  const rows: { id: number; project_id: number; deadline: string; level: number | string }[] =
+    await db('tasks as t')
+      .join('projects as p', 'p.id', 't.project_id')
+      .select(
+        't.id',
+        't.project_id',
+        db.raw("DATE_FORMAT(t.deadline, '%Y-%m-%d') AS deadline"),
+        db.raw(`${deadlineLevelSql('t.deadline')} AS level`),
+      )
+      .whereNull('t.deleted_at')
+      .whereNull('p.deleted_at')
+      .whereNotIn('t.status', CLOSED_STATUSES)
+      .whereRaw(`${deadlineLevelSql('t.deadline')} > t.deadline_alert_level`)
+  return rows.map((row) => ({ ...row, level: Number(row.level) }))
+}
+
+// 知らせた色を level に上げる。上げられたら true(同時に確認しても、通知は1回だけにするため)
+export const raiseDeadlineAlertLevel = async (id: number, level: number): Promise<boolean> =>
+  (await db('tasks')
+    .where({ id })
+    .where('deadline_alert_level', '<', level)
+    .update({ deadline_alert_level: level })) > 0
+
+// 担当者の ID(削除されたユーザーは除く)
+export const findActiveAssigneeIds = async (taskId: number): Promise<number[]> => {
+  const rows: { id: number }[] = await db('task_assignees as ta')
+    .join('users as u', 'u.id', 'ta.user_id')
+    .select('u.id')
+    .where('ta.task_id', taskId)
+    .whereNull('u.deleted_at')
+  return rows.map((row) => row.id)
+}
 
 // 論理削除。削除した件数を返す
 export const softDelete = async (projectId: number, id: number, userId: number): Promise<number> =>

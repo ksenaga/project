@@ -6,7 +6,7 @@ type NewNotification = {
   type: NotificationType
   project_id: number
   task_id: number | null
-  actor_id: number
+  actor_id: number | null // 操作した人がいない通知(期限の通知)は null
   message: string
 }
 

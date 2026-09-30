@@ -5,6 +5,7 @@ export const NOTIFICATION_TYPE = {
   TASK_CANCEL_REQUEST: 'task_cancel_request', // 一般ユーザーからの中止依頼(管理者・担当リーダーへ)
   TASK_COMMENT: 'task_comment', // 担当しているタスクにコメントが付いた(担当者へ)
   TASK_MENTION: 'task_mention', // コメントでメンションされた
+  TASK_DEADLINE: 'task_deadline', // 担当しているタスクの期限が迫っている(期限の色が黄色・赤になった)
 } as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE]

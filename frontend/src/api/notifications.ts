@@ -9,6 +9,7 @@ export type Notification = {
     | 'task_cancel_request'
     | 'task_comment'
     | 'task_mention' // コメントでメンションされた
+    | 'task_deadline' // 担当しているタスクの期限が迫っている(期限の色が黄色・赤になった)
   project_id: number
   task_id: number | null // プロジェクトの通知は null
   message: string

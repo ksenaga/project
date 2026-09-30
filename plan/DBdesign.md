@@ -61,6 +61,7 @@ created_at	datetime(3)			v
 updater	bigint unsigned		users.id		
 updated_at	datetime(3)				
 deleted_at	datetime(3)		
+deadline_alert_level	tinyint unsigned			v		※期限の通知で最後に知らせた色(0:なし・緑 / 1:黄色 / 2:赤。初期値0)
 
 task_assignees(タスクの担当者)(task_idとuser_idで複合主キー)(物理削除)
 列名	データ・タイプ	PK	FK	Not null	オートインクリメント
@@ -112,7 +113,7 @@ user_id	bigint unsigned		users.id	v
 type	varchar(30)			v	
 project_id	bigint unsigned		projects.id	v	
 task_id	bigint unsigned		tasks.id		
-actor_id	bigint unsigned		users.id	v	
+actor_id	bigint unsigned		users.id		
 message	varchar(255)			v	
 read_at	datetime(3)				
 created_at	datetime(3)			v	
@@ -166,7 +167,7 @@ DBのコメント
 ・tags / task_tags / notifications / task_comments / user_avatars / project_logs はテーブルと列に DB のコメントを付けている(それ以外のテーブルは未設定。users は追加した列のみ)
 ・task_comments.type:comment(人が書いたコメント)/ create(タスクを作成したときの自動コメント)/ move(タスクを移動したときの自動コメント。誰がどこからどこへ移動したかのログ代わり)/ change(項目を変更したときの自動コメント。変更内容を1行ずつ記録)。自動コメントは削除できない
 ・project_logs.type:create(作成)/ change(名前・詳細・期限・メンバーの変更)/ phase(フェーズの変更)。body は変更した項目を1行ずつ書いた文章(名前はそのときの名前)。user_id は操作した人
-・notifications.type:project_member(プロジェクトのメンバーに追加された)/ task_assignee(タスクの担当者になった)/ task_review(タスクがレビュー中になった)/ task_cancel_request(中止依頼)/ task_comment(担当しているタスクにコメントが投稿された)/ task_mention(コメントでメンションされた)。message は通知したときの名前で作った文章。read_at が NULL なら未読
+・notifications.type:project_member(プロジェクトのメンバーに追加された)/ task_assignee(タスクの担当者になった)/ task_review(タスクがレビュー中になった)/ task_cancel_request(中止依頼)/ task_comment(担当しているタスクにコメントが投稿された)/ task_mention(コメントでメンションされた)/ task_deadline(担当しているタスクの期限が迫っている)。actor_id は操作した人(期限の通知は NULL)。message は通知したときの名前で作った文章。read_at が NULL なら未読
 
 テーブルの管理
 ・テーブルは Knex のマイグレーションで作成・変更する(backend/db/migrations)

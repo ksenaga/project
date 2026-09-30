@@ -183,6 +183,26 @@ export const notifyMentioned = (
     )
   })
 
+// 担当しているタスクの期限が迫ったとき(期限の色が黄色・赤になったとき)、担当者へ
+export const notifyDeadlineApproaching = (
+  projectId: number,
+  task: { id: number; deadline: string },
+  userIds: number[],
+) =>
+  safely(async () => {
+    if (userIds.length === 0) return
+    await notificationRepository.createMany(
+      userIds.map((userId) => ({
+        user_id: userId,
+        type: NOTIFICATION_TYPE.TASK_DEADLINE,
+        project_id: projectId,
+        task_id: task.id,
+        actor_id: null,
+        message: `期限が${task.deadline.replaceAll('-', '/')}に迫っています。`,
+      })),
+    )
+  })
+
 // ログイン中のユーザーの通知(新しい順)と未読の件数
 export const list = async (
   user: AuthUser,

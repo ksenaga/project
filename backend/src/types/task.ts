@@ -41,6 +41,13 @@ export type DeadlineColor = (typeof DEADLINE_COLORS)[number]
 export const DEADLINE_RED_MAX_DAYS = 7
 export const DEADLINE_YELLOW_MAX_DAYS = 14
 
+// 期限の通知で知らせた色(tasks.deadline_alert_level)。数字が大きいほど期限が近い
+export const DEADLINE_ALERT_LEVEL = {
+  NONE: 0, // なし(緑)
+  YELLOW: 1, // 黄色になったことを知らせた
+  RED: 2, // 赤になったことを知らせた
+} as const
+
 // 追加したリストに入っているタスクの status(未完了として扱うため「対応中」にする)
 export const CUSTOM_LIST_STATUS: TaskStatus = TASK_STATUS.DOING
 

@@ -470,6 +470,9 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 　・一般ユーザーがタスクの中止を依頼した → 全管理者と、そのプロジェクトの担当リーダー
 　・タスクにコメントが投稿された → そのタスクの担当者(メンションされた人を除く)
 　・コメントでメンションされた → メンションされた人
+　・担当しているタスクの期限の色が変わった(緑 → 黄色、黄色 → 赤)→ そのタスクの担当者。文面は「期限が2026/10/15に迫っています。」
+　　サーバーの起動時と10分ごとに確かめる。完了・対応中止のタスクは除く。同じ色で2回は通知しない。
+　　作成したときはその時点の色を知らせた扱いにする(通知しない)。期限を延ばすと、また近づいたときに通知する
 　・コメント・メンションの通知の文面は「コメントが届いています。」「メンションされました。」だけ(コメントの内容は出さない)
 　・操作した本人には通知しない。通知の作成に失敗しても、元の操作は取り消さない
 通知一覧取得 GET /api/notifications
@@ -478,7 +481,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 	"notifications":[
 		{
 			"id":1,
-			"type":"task_review",	※project_member / task_assignee / task_review / task_cancel_request / task_comment / task_mention
+			"type":"task_review",	※project_member / task_assignee / task_review / task_cancel_request / task_comment / task_mention / task_deadline
 			"project_id":1,
 			"task_id":5,	※プロジェクトの通知は null
 			"message":"t_memberさんがタスク「ログイン修正」(プロジェクト)をレビュー中にしました",
