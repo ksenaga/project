@@ -46,16 +46,6 @@ export const TaskCardContent = ({
         transform: lifted ? 'rotate(2deg)' : undefined,
       }}
     >
-      {task.screen && (
-        <Typography
-          variant="caption"
-          component="p"
-          noWrap
-          sx={{ color: 'primary.main', fontWeight: 600, mb: 0.25 }}
-        >
-          {task.screen.name}
-        </Typography>
-      )}
       {/* タイトル(長いときは横に流れる)と、右端にタグ */}
       <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mb: 1 }}>
         <MarqueeText
