@@ -9,6 +9,7 @@ import {
   DialogTitle,
   TextField,
 } from '@mui/material'
+import { CancelIconButton } from '../ActionIconButtons'
 
 const REASON_MAX_LENGTH = 200
 
@@ -62,9 +63,7 @@ const CancelRequestDialog = ({ taskTitle, onClose, onSend }: Props) => {
         />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button onClick={onClose} disabled={sending} color="inherit">
-          キャンセル
-        </Button>
+        <CancelIconButton onClick={onClose} disabled={sending} />
         <Button variant="contained" color="warning" onClick={handleSend} loading={sending}>
           依頼する
         </Button>

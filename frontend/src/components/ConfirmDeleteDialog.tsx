@@ -8,6 +8,7 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material'
+import { CancelIconButton } from './ActionIconButtons'
 
 type Props = {
   title: string
@@ -43,9 +44,7 @@ const ConfirmDeleteDialog = ({ title, message, onClose, onConfirm }: Props) => {
         <DialogContentText sx={{ wordBreak: 'break-word' }}>{message}</DialogContentText>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button onClick={onClose} disabled={deleting} color="inherit">
-          キャンセル
-        </Button>
+        <CancelIconButton onClick={onClose} disabled={deleting} />
         <Button onClick={handleConfirm} variant="contained" color="error" loading={deleting}>
           削除
         </Button>

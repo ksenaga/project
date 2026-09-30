@@ -26,6 +26,7 @@ import {
   updateScreen,
   type Screen,
 } from '../../api/screens'
+import { CancelIconButton, SaveIconButton } from '../ActionIconButtons'
 
 const NAME_MAX_LENGTH = 50
 
@@ -172,24 +173,12 @@ const ScreenManageDialog = ({ projectId, onClose, onChanged }: Props) => {
                             htmlInput: { maxLength: NAME_MAX_LENGTH, 'aria-label': '画面名' },
                           }}
                         />
-                        <Button
-                          type="submit"
-                          variant="contained"
+                        <SaveIconButton type="submit" size="small" disabled={busy} />
+                        <CancelIconButton
                           size="small"
-                          disabled={busy}
-                          sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-                        >
-                          保存
-                        </Button>
-                        <Button
-                          size="small"
-                          color="inherit"
                           onClick={() => setEditing(null)}
                           disabled={busy}
-                          sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-                        >
-                          キャンセル
-                        </Button>
+                        />
                       </Stack>
                     ) : (
                       <>

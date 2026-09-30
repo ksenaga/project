@@ -20,6 +20,7 @@ import type { UserInput, UserSummary } from '../api/users'
 import { ROLE, ROLE_LABEL } from '../constants/role'
 import { toAvatarImage } from '../utils/avatarImage'
 import UserAvatar from './UserAvatar'
+import { CancelIconButton, SaveIconButton } from './ActionIconButtons'
 
 const NAME_MAX_LENGTH = 50
 const PASSWORD_MIN_LENGTH = 8
@@ -268,12 +269,14 @@ const UserFormDialog = ({ target, canChangeRole, onClose, onSubmit, onUnlock }: 
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={onClose} disabled={saving} color="inherit">
-            キャンセル
-          </Button>
-          <Button type="submit" variant="contained" loading={saving}>
-            {isEdit ? '保存' : '登録'}
-          </Button>
+          <CancelIconButton onClick={onClose} disabled={saving} />
+          {isEdit ? (
+            <SaveIconButton type="submit" loading={saving} />
+          ) : (
+            <Button type="submit" variant="contained" loading={saving}>
+              登録
+            </Button>
+          )}
         </DialogActions>
       </Box>
     </Dialog>

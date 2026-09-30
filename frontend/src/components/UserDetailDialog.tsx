@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react'
 import {
   Alert,
   Box,
-  Button,
   Chip,
   CircularProgress,
   Dialog,
-  DialogActions,
   DialogContent,
+  IconButton,
   List,
   ListItem,
   ListItemButton,
@@ -15,8 +14,11 @@ import {
   ListItemText,
   Paper,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import { Link as RouterLink } from 'react-router'
 import { fetchUser, type UserDetail } from '../api/users'
@@ -48,7 +50,30 @@ const UserDetailDialog = ({ userId, canEdit, canOpenProjects, onClose, onEdit }:
 
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="xs">
-      <DialogContent>
+      {/* 右上: 編集(管理者か本人のとき)/閉じる */}
+      <Stack
+        direction="row"
+        spacing={0.5}
+        sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}
+      >
+        {user && canEdit && (
+          <Tooltip title="編集">
+            <IconButton
+              aria-label={`${user.name}を編集`}
+              color="primary"
+              onClick={() => onEdit(user)}
+            >
+              <EditOutlinedIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+        <Tooltip title="閉じる">
+          <IconButton aria-label="閉じる" onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+      <DialogContent sx={{ pt: 3, pb: 3 }}>
         {error && <Alert severity="error">{error}</Alert>}
         {!user && !error && (
           <Box sx={{ display: 'grid', placeItems: 'center', py: 6 }}>
@@ -57,7 +82,8 @@ const UserDetailDialog = ({ userId, canEdit, canOpenProjects, onClose, onEdit }:
         )}
         {user && (
           <Stack spacing={3}>
-            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+            {/* 右上のボタンに名前が重ならないよう、右に余白を空ける */}
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center', pr: canEdit ? 10 : 5 }}>
               <UserAvatar user={user} size={56} />
               <Box sx={{ minWidth: 0 }}>
                 <Typography
@@ -73,7 +99,7 @@ const UserDetailDialog = ({ userId, canEdit, canOpenProjects, onClose, onEdit }:
 
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                参画しているプロジェクト（{user.projects.length}）
+                参画しているプロジェクト
               </Typography>
               {user.projects.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
@@ -117,16 +143,6 @@ const UserDetailDialog = ({ userId, canEdit, canOpenProjects, onClose, onEdit }:
           </Stack>
         )}
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button onClick={onClose} color="inherit">
-          閉じる
-        </Button>
-        {user && canEdit && (
-          <Button variant="contained" onClick={() => onEdit(user)}>
-            編集
-          </Button>
-        )}
-      </DialogActions>
     </Dialog>
   )
 }

@@ -17,6 +17,7 @@ import { fetchUsers, type Member, type User } from '../api/users'
 import { ROLE_LABEL } from '../constants/role'
 import ProjectHistory from './ProjectHistory'
 import UserAvatar from './UserAvatar'
+import { CancelIconButton, SaveIconButton } from './ActionIconButtons'
 
 const NAME_MAX_LENGTH = 50
 
@@ -204,12 +205,14 @@ const ProjectFormDialog = ({ project, readOnly = false, onClose, onSubmit }: Pro
             </Button>
           ) : (
             <>
-              <Button onClick={onClose} disabled={saving} color="inherit">
-                キャンセル
-              </Button>
-              <Button type="submit" variant="contained" loading={saving}>
-                {isEdit ? '保存' : '作成'}
-              </Button>
+              <CancelIconButton onClick={onClose} disabled={saving} />
+              {isEdit ? (
+                <SaveIconButton type="submit" loading={saving} />
+              ) : (
+                <Button type="submit" variant="contained" loading={saving}>
+                  作成
+                </Button>
+              )}
             </>
           )}
         </DialogActions>

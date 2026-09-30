@@ -32,6 +32,7 @@ import { isLimitedEditor, settableStatuses } from '../../utils/taskPermission'
 import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
 import TaskImageEditor from './TaskImageEditor'
+import { CancelIconButton, SaveIconButton } from '../ActionIconButtons'
 
 const TITLE_MAX_LENGTH = 50
 const VARCHAR_MAX_LENGTH = 255
@@ -482,18 +483,24 @@ const TaskFormDialog = ({
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={onClose} disabled={saving} color="inherit">
-            キャンセル
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            loading={saving}
-            // 画像を送っている途中は、送り終わるまで保存できない
-            disabled={conflicted || uploadingImages > 0}
-          >
-            {isEdit ? '保存' : '作成'}
-          </Button>
+          <CancelIconButton onClick={onClose} disabled={saving} />
+          {/* 画像を送っている途中は、送り終わるまで保存できない */}
+          {isEdit ? (
+            <SaveIconButton
+              type="submit"
+              loading={saving}
+              disabled={conflicted || uploadingImages > 0}
+            />
+          ) : (
+            <Button
+              type="submit"
+              variant="contained"
+              loading={saving}
+              disabled={conflicted || uploadingImages > 0}
+            >
+              作成
+            </Button>
+          )}
         </DialogActions>
       </Box>
     </Dialog>
