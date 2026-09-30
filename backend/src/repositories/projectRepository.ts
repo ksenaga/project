@@ -56,8 +56,9 @@ export const updatePhase = async (
   id: number,
   phase: ProjectPhase,
   userId: number,
+  conn: Conn = db,
 ): Promise<number> =>
-  db('projects')
+  conn('projects')
     .where({ id })
     .whereNull('deleted_at')
     .update({ phase, updater: userId, updated_at: db.fn.now(3) })

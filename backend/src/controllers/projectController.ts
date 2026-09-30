@@ -33,6 +33,11 @@ export const list = async (_req: Request, res: Response) => {
   res.json(await projectService.list())
 }
 
+// GET /api/projects/:id/logs
+export const logs = async (req: Request, res: Response) => {
+  res.json(await projectService.logs(parseId(req.params.id)))
+}
+
 // GET /api/projects/:id
 export const get = async (req: Request, res: Response) => {
   res.json(await projectService.get(parseId(req.params.id)))

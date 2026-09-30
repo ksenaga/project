@@ -1,6 +1,7 @@
 import { db, type Conn } from '../db/knex'
 import { badRequest, conflict, forbidden, notFound } from '../errors/HttpError'
 import * as boardListRepository from '../repositories/boardListRepository'
+import * as projectLogRepository from '../repositories/projectLogRepository'
 import * as projectMemberRepository from '../repositories/projectMemberRepository'
 import * as projectRepository from '../repositories/projectRepository'
 import * as taskRepository from '../repositories/taskRepository'
@@ -14,6 +15,7 @@ import type {
   ProjectPhase,
   ProjectRequest,
 } from '../types/project'
+import { PROJECT_LOG_TYPE, type ProjectLog } from '../types/projectLog'
 import { INCOMPLETE_STATUSES } from '../types/task'
 import { ROLE, type AuthUser } from '../types/user'
 
@@ -42,6 +44,30 @@ const pickProjectInput = (input: Partial<ProjectRequest>): Partial<ProjectInput>
   )
 }
 
+// 変更履歴は、変更した項目を1行ずつ「・」を付けて書く(誰が変えたかは user_id で持つ)
+const logLines = (lines: string[]) => lines.map((line) => `・${line}`).join('\n')
+const formatDeadline = (deadline: string) => deadline.replaceAll('-', '/')
+const joinNames = (names: string[]) => names.join('、')
+
+// 名前・詳細・期限の変更を文章にする(詳細は長いので、変えたことだけを書く)
+const describeChanges = (before: ProjectBase, input: Partial<ProjectInput>): string[] => {
+  const changes: string[] = []
+  if (input.name !== undefined && input.name !== before.name) {
+    changes.push(`名前: 「${before.name}」 → 「${input.name}」`)
+  }
+  if (input.detail !== undefined && input.detail !== before.detail) changes.push('詳細を変更')
+  if (input.deadline !== undefined && input.deadline !== before.deadline) {
+    changes.push(`期限: ${formatDeadline(before.deadline)} → ${formatDeadline(input.deadline)}`)
+  }
+  return changes
+}
+
+// 変更履歴(新しい順)。プロジェクト一覧・メンバーと同じく、全ロールが見られる
+export const logs = async (id: number): Promise<ProjectLog[]> => {
+  if (!(await projectRepository.findById(id))) throw projectNotFound()
+  return projectLogRepository.findByProject(id)
+}
+
 export const list = async (): Promise<Project[]> => withMembers(await projectRepository.findAll())
 
 export const get = async (id: number): Promise<ProjectDetail> => {
@@ -63,6 +89,17 @@ export const create = async (input: ProjectRequest, user: AuthUser): Promise<Pro
     )
     await projectMemberRepository.add(projectId, input.member_ids, user.id, trx)
     await boardListRepository.createDefaults(projectId, user.id, trx)
+    const memberNames = await userRepository.findNamesByIds(input.member_ids, trx)
+    await projectLogRepository.create(
+      projectId,
+      user.id,
+      PROJECT_LOG_TYPE.CREATE,
+      [
+        'プロジェクトを作成しました',
+        logLines([`メンバー: ${memberNames.length > 0 ? joinNames(memberNames) : 'なし'}`]),
+      ].join('\n'),
+      trx,
+    )
     return projectId
   })
   await notificationService.notifyAddedToProject(id, input.member_ids, user)
@@ -90,8 +127,23 @@ export const update = async (
   }
 
   const added = await db.transaction(async (trx) => {
-    const count = await projectRepository.update(id, pickProjectInput(input), user.id, trx)
+    const before = await projectRepository.findById(id, trx)
+    if (!before) throw projectNotFound()
+    const fields = pickProjectInput(input)
+    const count = await projectRepository.update(id, fields, user.id, trx)
     if (count === 0) throw projectNotFound()
+    // 変更履歴に書く内容(変わった項目だけ)
+    const changes = describeChanges(before, fields)
+    const writeLog = async () => {
+      if (changes.length === 0) return
+      await projectLogRepository.create(
+        id,
+        user.id,
+        PROJECT_LOG_TYPE.CHANGE,
+        logLines(changes),
+        trx,
+      )
+    }
 
     if (input.member_ids !== undefined) {
       const current = await projectMemberRepository.findUserIds(id, trx)
@@ -112,8 +164,20 @@ export const update = async (
       await ensureUsersExist(toAdd, trx)
       await projectMemberRepository.remove(id, toRemove, trx)
       await projectMemberRepository.add(id, toAdd, user.id, trx)
+      if (toAdd.length > 0) {
+        changes.push(
+          `メンバーに追加: ${joinNames(await userRepository.findNamesByIds(toAdd, trx))}`,
+        )
+      }
+      if (toRemove.length > 0) {
+        changes.push(
+          `メンバーから外す: ${joinNames(await userRepository.findNamesByIds(toRemove, trx))}`,
+        )
+      }
+      await writeLog()
       return toAdd
     }
+    await writeLog()
     return []
   })
   await notificationService.notifyAddedToProject(id, added, user)
@@ -127,8 +191,21 @@ export const updatePhase = async (
 ): Promise<ProjectDetail> => {
   await ensureCanEdit(id, user)
 
-  const count = await projectRepository.updatePhase(id, phase, user.id)
-  if (count === 0) throw projectNotFound()
+  await db.transaction(async (trx) => {
+    const before = await projectRepository.findById(id, trx)
+    if (!before) throw projectNotFound()
+    const count = await projectRepository.updatePhase(id, phase, user.id, trx)
+    if (count === 0) throw projectNotFound()
+    if (before.phase !== phase) {
+      await projectLogRepository.create(
+        id,
+        user.id,
+        PROJECT_LOG_TYPE.PHASE,
+        logLines([`フェーズ: ${before.phase} → ${phase}`]),
+        trx,
+      )
+    }
+  })
   return get(id)
 }
 

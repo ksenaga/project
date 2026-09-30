@@ -36,3 +36,15 @@ export const updateProjectPhase = (id: number, phase: ProjectPhase) =>
   request<ProjectDetail>(`/projects/${id}/phase`, { method: 'PATCH', body: { phase } })
 
 export const deleteProject = (id: number) => request<void>(`/projects/${id}`, { method: 'DELETE' })
+
+// 変更履歴の1件。body は変更した項目を1行ずつ書いたもの(作成は「プロジェクトを作成しました」から始まる)
+export type ProjectLog = {
+  id: number
+  type: 'create' | 'change' | 'phase' // 作成 / 名前・詳細・期限・メンバーの変更 / フェーズの変更
+  body: string
+  user: Member // 操作した人
+  created_at: string // ISO 8601
+}
+
+// 変更履歴(新しい順)。全ロールが見られる
+export const fetchProjectLogs = (id: number) => request<ProjectLog[]>(`/projects/${id}/logs`)

@@ -246,6 +246,16 @@ export const softDelete = async (id: number, updaterId: number, conn: Conn = db)
     .whereNull('deleted_at')
     .update({ updater: updaterId, updated_at: db.fn.now(3), deleted_at: db.fn.now(3) })
 
+// 指定した ID のユーザーの名前(ID 順。変更履歴に書くため、削除済みのユーザーも含める)
+export const findNamesByIds = async (ids: number[], conn: Conn = db): Promise<string[]> => {
+  if (ids.length === 0) return []
+  const rows: { name: string }[] = await conn('users')
+    .select('name')
+    .whereIn('id', ids)
+    .orderBy('id')
+  return rows.map((row) => row.name)
+}
+
 // 指定した権限の(削除されていない)ユーザーの ID
 export const findActiveIdsByRole = async (role: number): Promise<number[]> => {
   const rows: { id: number }[] = await db('users')

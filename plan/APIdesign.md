@@ -11,6 +11,7 @@ API設計
 プロジェクト詳細	GET	/api/projects/{id}
 プロジェクト編集	PATCH	/api/projects/{id}
 フェーズ変更	PATCH	/api/projects/{id}/phase
+変更履歴	GET	/api/projects/{id}/logs
 プロジェクト削除	DELETE	/api/projects/{id}
 【プロジェクトメンバー】
 プロジェクト作成・編集の member_ids でまとめて設定する
@@ -342,6 +343,26 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 }
 プロジェクト削除 DELETE /api/projects/{id}
 (なし)
+変更履歴 GET /api/projects/{id}/logs
+※新しい順。全ロールが見られる(プロジェクト一覧・メンバーと同じ)
+※作成・編集(名前・詳細・期限・メンバーの追加と外す)・フェーズの変更を、同じトランザクションで記録する。変わった項目がなければ記録しない
+※body は変更した項目を1行ずつ「・」を付けて書く。詳細は長いので「詳細を変更」とだけ書く。誰が変えたかは user
+[
+	{
+		"id":2,
+		"type":"change",	※create:作成 / change:名前・詳細・期限・メンバーの変更 / phase:フェーズの変更
+		"body":"・名前: 「A」 → 「B」\n・詳細を変更\n・期限: 2026/12/31 → 2027/01/15\n・メンバーに追加: t_b\n・メンバーから外す: t_a",
+		"user":{"id":1,"name":"admin","avatar_url":null},	※操作した人
+		"created_at":"2026-09-30T07:10:00.000Z"
+	},
+	{
+		"id":1,
+		"type":"create",
+		"body":"プロジェクトを作成しました\n・メンバー: admin、t_a",
+		"user":{"id":1,"name":"admin","avatar_url":null},
+		"created_at":"2026-09-30T07:00:00.000Z"
+	}
+]
 
 【タスク】
 タスク一覧 GET /api/projects/{project_id}/tasks
@@ -634,6 +655,9 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 プロジェクト削除 DELETE /api/projects/{id}
 成功 204
 失敗 401 or 403(管理者以外) or 404
+変更履歴 GET /api/projects/{id}/logs
+成功 200
+失敗 400 or 401 or 404
 
 タスク一覧取得 GET /api/projects/{project_id}/tasks
 成功 200

@@ -15,6 +15,7 @@ import {
 import type { Project, ProjectInput } from '../api/projects'
 import { fetchUsers, type Member, type User } from '../api/users'
 import { ROLE_LABEL } from '../constants/role'
+import ProjectHistory from './ProjectHistory'
 import UserAvatar from './UserAvatar'
 
 const NAME_MAX_LENGTH = 50
@@ -192,6 +193,8 @@ const ProjectFormDialog = ({ project, readOnly = false, onClose, onSubmit }: Pro
                 />
               )}
             />
+            {/* 作成済みのプロジェクトは、メンバーの下に変更履歴(閉じた状態で表示し、開いたら読み込む) */}
+            {project && <ProjectHistory projectId={project.id} />}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
