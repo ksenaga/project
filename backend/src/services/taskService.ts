@@ -305,6 +305,10 @@ export const remove = async (projectId: number, id: number, user: AuthUser): Pro
 }
 
 // タスク ID から、そのタスクがあるプロジェクトを調べる(コメントの「#ID」から開くため)
+// 自分が担当しているタスク(見られるプロジェクトすべて。期限が近い順)
+export const mine = (user: AuthUser, { includeClosed }: { includeClosed: boolean }) =>
+  taskRepository.findAssignedTo(user.id, { memberOnly: user.role !== ROLE.ADMIN, includeClosed })
+
 export const findLocation = async (id: number, user: AuthUser) => {
   const location = await taskRepository.findLocation(id)
   if (!location) throw taskNotFound()

@@ -134,6 +134,11 @@ export const update = async (req: Request, res: Response) => {
   res.json(await taskService.update(projectId, id!, input, req.user!, { expectedUpdatedAt }))
 }
 
+// GET /api/tasks/mine(自分が担当しているタスク。?closed=1 なら完了・対応中止も含める)
+export const mine = async (req: Request, res: Response) => {
+  res.json(await taskService.mine(req.user!, { includeClosed: req.query.closed === '1' }))
+}
+
 // GET /api/tasks/:id(タスク ID から、タスクがあるプロジェクトを調べる)
 export const location = async (req: Request, res: Response) => {
   res.json(await taskService.findLocation(parseId(req.params.id), req.user!))

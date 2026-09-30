@@ -1,6 +1,7 @@
 import { db, type Conn } from '../db/knex'
 import {
   CLOSED_STATUSES,
+  type MyTask,
   DEADLINE_RED_MAX_DAYS,
   DEADLINE_YELLOW_MAX_DAYS,
   type Task,
@@ -276,6 +277,70 @@ export const clearListOfDeletedTasks = async (listId: number, conn: Conn = db) =
 }
 
 // タスクがどのプロジェクトにあるか(削除済みのタスク・プロジェクトは除く)
+// 担当しているタスク(削除されていないプロジェクトのもの。期限が近い順)。
+// memberOnly: true なら、メンバーになっているプロジェクトのタスクだけ(管理者以外は見られるプロジェクトが限られるため)
+// includeClosed: false なら、完了・対応中止のタスクは含めない
+export const findAssignedTo = async (
+  userId: number,
+  { memberOnly, includeClosed }: { memberOnly: boolean; includeClosed: boolean },
+): Promise<MyTask[]> => {
+  const query = db('tasks as t')
+    .join('projects as p', 'p.id', 't.project_id')
+    .leftJoin('screens as s', 's.id', 't.screen_id')
+    // 入っているリスト(追加したリストは list_id、既存の5つはステータスが同じリスト)
+    .leftJoin('board_lists as bl', (on) =>
+      on
+        .on('bl.project_id', 't.project_id')
+        .andOn(
+          db.raw(
+            '((t.list_id IS NOT NULL AND bl.id = t.list_id) OR (t.list_id IS NULL AND bl.status = t.status))',
+          ),
+        ),
+    )
+    .select([
+      ...summaryColumns,
+      'p.id as project_id',
+      'p.name as project_name',
+      'bl.id as bl_id',
+      'bl.name as bl_name',
+      'bl.color as bl_color',
+    ])
+    .whereNull('t.deleted_at')
+    .whereNull('p.deleted_at')
+    .whereExists(
+      db('task_assignees as ta').whereRaw('ta.task_id = t.id').where('ta.user_id', userId),
+    )
+    .orderBy([{ column: 't.deadline' }, { column: 't.id' }])
+  if (memberOnly) {
+    query.whereExists(
+      db('project_member as pm')
+        .whereRaw('pm.project_id = t.project_id')
+        .where('pm.user_id', userId),
+    )
+  }
+  if (!includeClosed) query.whereNotIn('t.status', CLOSED_STATUSES)
+
+  type MyRow = Row & {
+    project_id: number
+    project_name: string
+    bl_id: number | null
+    bl_name: string | null
+    bl_color: string | null
+  }
+  const rows: MyRow[] = await query
+  const tasks = await toTasks(
+    rows.map(({ project_id, project_name, bl_id, bl_name, bl_color, ...row }) => row),
+  )
+  return tasks.map((task, i) => {
+    const { project_id, project_name, bl_id, bl_name, bl_color } = rows[i]
+    return {
+      ...task,
+      project: { id: project_id, name: project_name },
+      list: bl_id === null ? null : { id: bl_id, name: bl_name!, color: bl_color! },
+    }
+  })
+}
+
 export const findLocation = async (
   id: number,
 ): Promise<{ id: number; project_id: number; title: string } | undefined> =>

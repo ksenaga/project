@@ -24,6 +24,7 @@ API設計
 タスク編集	PATCH	/api/projects/{project_id}/tasks/{id}
 タスク削除	DELETE	/api/projects/{project_id}/tasks/{id}
 中止依頼	POST	/api/projects/{project_id}/tasks/{id}/cancel-request
+担当タスク一覧(ヘッダーの「タスク一覧」)	GET	/api/tasks/mine
 タスクの場所を調べる	GET	/api/tasks/{id}
 コメント一覧取得	GET	/api/projects/{project_id}/tasks/{task_id}/comments
 コメント投稿	POST	/api/projects/{project_id}/tasks/{task_id}/comments
@@ -222,6 +223,28 @@ Request
 ※そのプロジェクトのメンバーと管理者(名前順)。コメント欄で「@」を打ったときの候補に使う
 [
 	{"id":6,"name":"t_member","avatar_url":null}
+]
+
+【担当タスク一覧(ヘッダーの「タスク一覧」)】
+担当タスク一覧 GET /api/tasks/mine
+※自分が担当者に含まれるタスクを、プロジェクトをまたいで期限が近い順に返す(削除されたプロジェクト・タスクは除く)
+※管理者は全プロジェクト、それ以外はメンバーになっているプロジェクトのタスクだけ
+※最初は未完了(未対応・対応中・レビュー中・追加したリスト)だけ。?closed=1 を付けると完了・対応中止も返す
+※タスク一覧の1件と同じ項目に、project(プロジェクト)と list(入っているリスト。既存の5つはステータスのリスト)が付く
+[
+	{
+		"id":3,
+		"title":"タスク",
+		"status":"未対応",
+		"deadline":"2026-10-07",
+		"tags":[],
+		"assignees":[{"id":1,"name":"admin","avatar_url":null}],
+		"screen":{"id":1,"name":"ログイン画面"},
+		"list_id":null,
+		"comment_count":2,
+		"project":{"id":1,"name":"プロジェクト"},
+		"list":{"id":1,"name":"未対応","color":"#e2e8f0"}
+	}
 ]
 
 【タスクの場所】
@@ -689,6 +712,9 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 中止依頼 POST /api/projects/{project_id}/tasks/{id}/cancel-request
 成功 201
 失敗 400 or 401 or 403(一般ユーザー以外・担当者でない) or 404 or 409(完了・対応中止のタスク)
+担当タスク一覧 GET /api/tasks/mine
+成功 200
+失敗 401
 タスクの場所を調べる GET /api/tasks/{id}
 成功 200
 失敗 400 or 401 or 403(管理者以外でプロジェクトメンバーでない) or 404

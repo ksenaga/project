@@ -4,6 +4,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import RequireAuth from './auth/RequireAuth'
 import AppLayout from './components/AppLayout'
 import LoginPage from './pages/LoginPage'
+import MyTasksPage from './pages/MyTasksPage'
 import ProjectPage from './pages/ProjectPage'
 import TaskBoardPage from './pages/TaskBoardPage'
 import TaskRedirectPage from './pages/TaskRedirectPage'
@@ -34,6 +35,7 @@ const App = () => {
           <Route path="/login" element={<LoginRoute />} />
           <Route element={<RequireAuth />}>
             <Route element={<AppLayout />}>
+              <Route path="/my-tasks" element={<MyTasksPage />} />
               <Route path="/projects" element={<ProjectPage />} />
               <Route path="/projects/:projectId/tasks" element={<TaskBoardPage />} />
               <Route path="/tasks/:taskId" element={<TaskRedirectPage />} />

@@ -7,6 +7,7 @@ import NotificationBell from './NotificationBell'
 import UserAvatar from './UserAvatar'
 
 const NAV_ITEMS = [
+  { to: '/my-tasks', label: 'タスク一覧' },
   { to: '/projects', label: 'プロジェクト' },
   { to: '/users', label: 'ユーザー' },
 ]

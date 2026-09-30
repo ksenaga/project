@@ -128,3 +128,14 @@ export const requestTaskCancel = (projectId: number, id: number, reason: string)
     method: 'POST',
     body: { reason },
   })
+
+// ヘッダーの「タスク一覧」(自分が担当しているタスク)で返るタスク(プロジェクトをまたぐので、プロジェクトと入っているリストが付く)
+export type MyTask = TaskSummary & {
+  project: { id: number; name: string }
+  list: { id: number; name: string; color: string } | null // 入っているリスト(ボードと同じ名前・色)
+}
+
+// 自分が担当しているタスク(見られるプロジェクトすべて。期限が近い順)。
+// includeClosed: true なら完了・対応中止のタスクも含める
+export const fetchMyTasks = ({ includeClosed = false }: { includeClosed?: boolean } = {}) =>
+  request<MyTask[]>(includeClosed ? '/tasks/mine?closed=1' : '/tasks/mine')

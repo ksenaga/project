@@ -67,6 +67,13 @@ export type TaskSummary = {
   comment_count: number // 人が書いたコメントの数(移動の自動コメントは数えない)
 }
 
+// ヘッダーの「タスク一覧」(自分が担当しているタスク)で返すタスク(プロジェクトをまたぐので、プロジェクトと、入っているリストも付ける)
+export type MyTask = TaskSummary & {
+  project: { id: number; name: string }
+  // 入っているリスト(既存の5つはステータスのリスト)。ボードと同じ名前・色で表示するため
+  list: { id: number; name: string; color: string } | null
+}
+
 // 詳細で返すタスク
 export type Task = TaskSummary & {
   // 最後に更新した日時(ISO 8601。一度も更新していなければ null)。同時編集の確認に使う
