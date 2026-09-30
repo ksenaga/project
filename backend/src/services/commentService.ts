@@ -41,8 +41,8 @@ export const create = async (
   const mentioned = findMentionedUsers(body, await userRepository.findMentionable(projectId)).map(
     (mentionedUser) => mentionedUser.id,
   )
-  await notificationService.notifyMentioned(projectId, task, body, mentioned, user)
-  await notificationService.notifyCommented(projectId, task, body, user, mentioned)
+  await notificationService.notifyMentioned(projectId, task, mentioned, user)
+  await notificationService.notifyCommented(projectId, task, user, mentioned)
   return (await commentRepository.findById(taskId, id))!
 }
 

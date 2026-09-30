@@ -130,12 +130,16 @@ export const notifyCancelRequested = async (
   return targets.length
 }
 
+// 通知の文面は短く「コメントが届いています。」「メンションされました。」だけにする
+// (コメントの内容は通知を開いた先のタスクで見る)
+const COMMENT_MESSAGE = 'コメントが届いています。'
+const MENTION_MESSAGE = 'メンションされました。'
+
 // 担当しているタスクにコメントが付いたら、担当者へ(書いた本人は除く)。
 // exclude の人(メンションされて、別に通知を受け取る人)には送らない
 export const notifyCommented = (
   projectId: number,
-  task: { id: number; title: string; assignees: { id: number }[] },
-  body: string,
+  task: { id: number; assignees: { id: number }[] },
   actor: AuthUser,
   exclude: number[] = [],
 ) =>
@@ -145,8 +149,6 @@ export const notifyCommented = (
       actor,
     ).filter((id) => !exclude.includes(id))
     if (targets.length === 0) return
-    const name = await projectName(projectId)
-    const excerpt = truncate(body.replace(/\s+/g, ' '), 60)
     await notificationRepository.createMany(
       targets.map((userId) => ({
         user_id: userId,
@@ -154,10 +156,7 @@ export const notifyCommented = (
         project_id: projectId,
         task_id: task.id,
         actor_id: actor.id,
-        message: truncate(
-          `${actor.name}さんがタスク「${task.title}」（${name}）にコメントしました: ${excerpt}`,
-          MESSAGE_MAX_LENGTH,
-        ),
+        message: COMMENT_MESSAGE,
       })),
     )
   })
@@ -165,16 +164,13 @@ export const notifyCommented = (
 // コメントでメンションされた人へ(書いた本人は除く)
 export const notifyMentioned = (
   projectId: number,
-  task: { id: number; title: string },
-  body: string,
+  task: { id: number },
   userIds: number[],
   actor: AuthUser,
 ) =>
   safely(async () => {
     const targets = others(userIds, actor)
     if (targets.length === 0) return
-    const name = await projectName(projectId)
-    const excerpt = truncate(body.replace(/\s+/g, ' '), 60)
     await notificationRepository.createMany(
       targets.map((userId) => ({
         user_id: userId,
@@ -182,10 +178,7 @@ export const notifyMentioned = (
         project_id: projectId,
         task_id: task.id,
         actor_id: actor.id,
-        message: truncate(
-          `${actor.name}さんがタスク「${task.title}」（${name}）のコメントであなたをメンションしました: ${excerpt}`,
-          MESSAGE_MAX_LENGTH,
-        ),
+        message: MENTION_MESSAGE,
       })),
     )
   })
