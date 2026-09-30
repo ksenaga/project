@@ -6,17 +6,23 @@ import {
   Chip,
   CircularProgress,
   Dialog,
-  DialogActions,
   DialogContent,
-  DialogTitle,
   IconButton,
   Link,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Stack,
   Tooltip,
   Typography,
 } from '@mui/material'
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined'
+import CloseIcon from '@mui/icons-material/Close'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined'
 import { fetchTask, requestTaskCancel, type Task } from '../../api/tasks'
 import type { BoardList } from '../../api/boardLists'
@@ -72,7 +78,7 @@ const Text = ({ value, linkify = false }: { value: string | null; linkify?: bool
     </Typography>
   ) : (
     <Typography variant="body2" color="text.disabled">
-      未入力
+      —
     </Typography>
   )
 
@@ -104,6 +110,8 @@ const TaskDetailDialog = ({
   const [task, setTask] = useState<Task | null>(null)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  // 右上の「⋮」で開くメニュー(編集・コピー・削除)
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   // 中止依頼を送ったとき(通知した人数)
   const [cancelSent, setCancelSent] = useState<number | null>(null)
   // 一般ユーザーは、完了・対応中止でないタスクの中止を管理者・リーダーに依頼できる
@@ -131,10 +139,138 @@ const TaskDetailDialog = ({
       onClose={onClose}
       fullWidth
       maxWidth="lg"
-      slotProps={{ paper: { sx: { ...scaledTextSx, px: 1.5 } } }}
+      // 高さを決めておき、詳細とコメントはそれぞれの中でスクロールする
+      slotProps={{
+        paper: {
+          sx: {
+            ...scaledTextSx,
+            height: 'min(90vh, 960px)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          },
+        },
+      }}
     >
+      {/* 上の帯: 左にステータス、右に中止依頼(一般ユーザー)/「⋮」(編集・コピー・削除)/閉じる */}
+      <Stack
+        direction="row"
+        spacing={0.5}
+        sx={{
+          alignItems: 'center',
+          px: 3,
+          py: 1.25,
+          borderBottom: 1,
+          borderColor: 'divider',
+          flexShrink: 0,
+        }}
+      >
+        {task && (
+          <Chip
+            label={
+              task.list_id !== null
+                ? (lists.find((list) => list.id === task.list_id)?.name ?? task.status)
+                : task.status
+            }
+            size="small"
+            sx={{
+              // 追加したリストはそのリストの色(明るい色なので文字は濃い色)
+              ...(task.list_id !== null
+                ? {
+                    bgcolor:
+                      lists.find((list) => list.id === task.list_id)?.color ?? CUSTOM_LIST_COLOR,
+                    color: 'text.primary',
+                  }
+                : { bgcolor: TASK_STATUS_COLOR[task.status], color: 'common.white' }),
+              fontWeight: 600,
+            }}
+          />
+        )}
+        <Box sx={{ flexGrow: 1 }} />
+        {canRequestCancel && (
+          <Button
+            variant="outlined"
+            color="warning"
+            size="small"
+            startIcon={<BlockOutlinedIcon />}
+            onClick={() => setCancelOpen(true)}
+            disabled={cancelSent !== null}
+            sx={{ mr: 0.5 }}
+          >
+            {cancelSent !== null ? '中止依頼済み' : '中止依頼'}
+          </Button>
+        )}
+        {task && (
+          <Tooltip title="その他の操作">
+            <IconButton
+              aria-label="その他の操作"
+              aria-haspopup="menu"
+              aria-expanded={menuAnchor !== null}
+              onClick={(e) => setMenuAnchor(e.currentTarget)}
+            >
+              <MoreVertIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+        <Tooltip title="閉じる">
+          <IconButton aria-label="閉じる" onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+      {task && (
+        <Menu
+          anchorEl={menuAnchor}
+          open={menuAnchor !== null}
+          onClose={() => setMenuAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          slotProps={{ paper: { sx: { minWidth: 160 } } }}
+        >
+          {/* 編集できないタスク(完了・一般ユーザーの他人のタスク)では押せない */}
+          <MenuItem
+            disabled={!canEditTask(user, task)}
+            onClick={() => {
+              setMenuAnchor(null)
+              onEdit(task)
+            }}
+          >
+            <ListItemIcon>
+              <EditOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>編集</ListItemText>
+          </MenuItem>
+          {/* プロジェクトメンバーなら誰でもタスクを作成できるので、コピーも全員できる */}
+          <MenuItem
+            onClick={() => {
+              setMenuAnchor(null)
+              onCopy(task)
+            }}
+          >
+            <ListItemIcon>
+              <ContentCopyIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>コピー</ListItemText>
+          </MenuItem>
+          {/* 削除は管理者・リーダーのみ(一般ユーザーには出さない) */}
+          {canDeleteTask(user) && (
+            <MenuItem
+              onClick={() => {
+                setMenuAnchor(null)
+                onDelete(task)
+              }}
+              sx={{ color: 'error.main' }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>
+                <DeleteOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>削除</ListItemText>
+            </MenuItem>
+          )}
+        </Menu>
+      )}
       {error && (
-        <DialogContent>
+        <DialogContent sx={{ pt: 8 }}>
           <Alert severity="error">{error}</Alert>
         </DialogContent>
       )}
@@ -145,183 +281,149 @@ const TaskDetailDialog = ({
       )}
       {task && (
         <>
-          <DialogTitle
-            // 右上のボタンにタイトルが重ならないよう、右に余白を空ける
-            sx={{ pt: 3.5, pb: 2, position: 'relative', pr: canRequestCancel ? 22 : undefined }}
-          >
-            {canRequestCancel && (
-              <Button
-                variant="outlined"
-                color="warning"
-                size="small"
-                startIcon={<BlockOutlinedIcon />}
-                onClick={() => setCancelOpen(true)}
-                disabled={cancelSent !== null}
-                sx={{ position: 'absolute', top: 24, right: 24 }}
-              >
-                {cancelSent !== null ? '中止依頼済み' : '中止依頼'}
-              </Button>
-            )}
-            <Chip
-              label={
-                task.list_id !== null
-                  ? (lists.find((list) => list.id === task.list_id)?.name ?? task.status)
-                  : task.status
-              }
-              size="small"
-              sx={{
-                mb: 1,
-                // 追加したリストはそのリストの色(明るい色なので文字は濃い色)
-                ...(task.list_id !== null
-                  ? {
-                      bgcolor:
-                        lists.find((list) => list.id === task.list_id)?.color ?? CUSTOM_LIST_COLOR,
-                      color: 'text.primary',
-                    }
-                  : { bgcolor: TASK_STATUS_COLOR[task.status], color: 'common.white' }),
-                fontWeight: 600,
-              }}
-            />
-            {/* タスク名の横に、このタスクのリンクをコピーするボタン */}
-            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-              <Typography
-                variant="h6"
-                component="p"
-                sx={{ fontWeight: 700, wordBreak: 'break-word' }}
-              >
-                {task.title}
-              </Typography>
-              <Tooltip
-                title={
-                  linkCopied
-                    ? 'コピーしました'
-                    : 'リンクをコピー（コメントに貼るとタスク名で表示されます）'
-                }
-              >
-                <IconButton
-                  size="small"
-                  aria-label="タスクのリンクをコピー"
-                  onClick={async () => {
-                    await navigator.clipboard
-                      .writeText(`${window.location.origin}${taskLink(task.id)}`)
-                      .catch(() => {})
-                    setLinkCopied(true)
-                  }}
-                  onMouseLeave={() => setLinkCopied(false)}
-                  sx={{ flexShrink: 0 }}
-                >
-                  <LinkOutlinedIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
-            {/* タスク ID。コメントに「#ID」と書いても、このタスクへのリンクになる */}
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mt: 0.25 }}>
-              #{task.id}
-            </Typography>
-          </DialogTitle>
-          {/* 左に詳細、右にコメント */}
-          <DialogContent
+          {/* 左に詳細(スクロール)、右にコメント(入力欄は一番下に固定) */}
+          <Box
             sx={{
-              pb: 3.5,
+              flex: 1,
+              minHeight: 0,
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 400px' },
-              gap: 4,
+              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 440px' },
+              gridTemplateRows: { xs: 'minmax(0, 1fr) minmax(0, 1fr)', md: 'minmax(0, 1fr)' },
             }}
           >
-            <Stack spacing={3}>
-              {cancelSent !== null && (
-                <Alert severity="success" onClose={() => setCancelSent(null)}>
-                  中止依頼を送りました（{cancelSent}人に通知しました）
-                </Alert>
-              )}
-              {task.status === TASK_STATUS.DONE && (
-                <Alert severity="info">完了したタスクは編集できません</Alert>
-              )}
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
-                <Field label="期限">
-                  <Typography variant="body2">{formatDate(task.deadline)}</Typography>
-                </Field>
-                <Field label="画面名">
-                  {/* 画面名を必須にする前に作ったタスクは、画面名がない場合がある */}
-                  <Text value={task.screen?.name ?? null} />
-                </Field>
-              </Box>
-              <Field label="担当者">
-                <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1.5 }}>
-                  {task.assignees.map((assignee) => (
-                    <Stack
-                      key={assignee.id}
-                      direction="row"
-                      spacing={1}
-                      sx={{ alignItems: 'center' }}
-                    >
-                      <UserAvatar user={assignee} size={28} />
-                      <Typography variant="body2">{assignee.name}</Typography>
-                    </Stack>
-                  ))}
-                </Stack>
-              </Field>
-              <Field label="タグ">
-                {task.tags.length === 0 ? (
-                  <Typography variant="body2" color="text.disabled">
-                    未入力
-                  </Typography>
-                ) : (
-                  <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1 }}>
-                    {task.tags.map((tag) => (
-                      <Tooltip
-                        key={tag.id}
-                        title={tags.find((t) => t.id === tag.id)?.description ?? ''}
-                      >
-                        <span>
-                          <TagLabel tag={tag} size="medium" />
-                        </span>
-                      </Tooltip>
-                    ))}
-                  </Stack>
-                )}
-              </Field>
-              <Field label="説明">
-                <Text value={task.detail} linkify />
-              </Field>
-              <Field label="修正内容">
-                {/* 画像だけ貼って文字がないときは「未入力」を出さない */}
-                {(task.modified || (task.modified_images ?? []).length === 0) && (
-                  <Text value={task.modified} linkify />
-                )}
-                <TaskImageGallery images={task.modified_images ?? []} />
-              </Field>
-              <Field label="修正理由">
-                <Text value={task.reason} linkify />
-              </Field>
-              <Field label="Git URL">
-                {task.git && isHttpUrl(task.git) ? (
-                  <Link
-                    href={task.git}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="body2"
-                    sx={{ wordBreak: 'break-all' }}
+            <Box sx={{ overflowY: 'auto', px: 4, py: 3 }}>
+              {/* タスク名の横に、このタスクのリンクをコピーするボタン */}
+              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                <Typography
+                  variant="h6"
+                  component="p"
+                  sx={{ fontWeight: 700, wordBreak: 'break-word' }}
+                >
+                  {task.title}
+                </Typography>
+                <Tooltip
+                  title={
+                    linkCopied
+                      ? 'コピーしました'
+                      : 'リンクをコピー（コメントに貼るとタスク名で表示されます）'
+                  }
+                >
+                  <IconButton
+                    size="small"
+                    aria-label="タスクのリンクをコピー"
+                    onClick={async () => {
+                      await navigator.clipboard
+                        .writeText(`${window.location.origin}${taskLink(task.id)}`)
+                        .catch(() => {})
+                      setLinkCopied(true)
+                    }}
+                    onMouseLeave={() => setLinkCopied(false)}
+                    sx={{ flexShrink: 0 }}
                   >
-                    {task.git}
-                  </Link>
-                ) : (
-                  <Text value={task.git} />
+                    <LinkOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+              <Stack spacing={3} sx={{ mt: 3 }}>
+                {cancelSent !== null && (
+                  <Alert severity="success" onClose={() => setCancelSent(null)}>
+                    中止依頼を送りました（{cancelSent}人に通知しました）
+                  </Alert>
                 )}
-              </Field>
-              <Field label="メモ">
-                <Text value={task.memo} linkify />
-              </Field>
-            </Stack>
+                {task.status === TASK_STATUS.DONE && (
+                  <Alert severity="info">完了したタスクは編集できません</Alert>
+                )}
+                {/* 期限・画面名 / 担当者・タグ の2行2列 */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2.5 }}>
+                  <Field label="期限">
+                    <Typography variant="body2">{formatDate(task.deadline)}</Typography>
+                  </Field>
+                  <Field label="画面名">
+                    {/* 画面名を必須にする前に作ったタスクは、画面名がない場合がある */}
+                    <Text value={task.screen?.name ?? null} />
+                  </Field>
+                  <Field label="担当者">
+                    <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1.5 }}>
+                      {task.assignees.map((assignee) => (
+                        <Stack
+                          key={assignee.id}
+                          direction="row"
+                          spacing={1}
+                          sx={{ alignItems: 'center' }}
+                        >
+                          <UserAvatar user={assignee} size={28} />
+                          <Typography variant="body2">{assignee.name}</Typography>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </Field>
+                  <Field label="タグ">
+                    {task.tags.length === 0 ? (
+                      <Typography variant="body2" color="text.disabled">
+                        —
+                      </Typography>
+                    ) : (
+                      <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1 }}>
+                        {task.tags.map((tag) => (
+                          <Tooltip
+                            key={tag.id}
+                            title={tags.find((t) => t.id === tag.id)?.description ?? ''}
+                          >
+                            <span>
+                              <TagLabel tag={tag} size="medium" />
+                            </span>
+                          </Tooltip>
+                        ))}
+                      </Stack>
+                    )}
+                  </Field>
+                </Box>
+                <Field label="説明">
+                  <Text value={task.detail} linkify />
+                </Field>
+                <Field label="修正内容">
+                  {/* 画像だけ貼って文字がないときは「—」を出さない */}
+                  {(task.modified || (task.modified_images ?? []).length === 0) && (
+                    <Text value={task.modified} linkify />
+                  )}
+                  <TaskImageGallery images={task.modified_images ?? []} />
+                </Field>
+                <Field label="修正理由">
+                  <Text value={task.reason} linkify />
+                </Field>
+                <Field label="Git URL">
+                  {task.git && isHttpUrl(task.git) ? (
+                    <Link
+                      href={task.git}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      variant="body2"
+                      sx={{ wordBreak: 'break-all' }}
+                    >
+                      {task.git}
+                    </Link>
+                  ) : (
+                    <Text value={task.git} />
+                  )}
+                </Field>
+                <Field label="メモ">
+                  <Text value={task.memo} linkify />
+                </Field>
+              </Stack>
+            </Box>
             <Box
               component="aside"
               sx={{
+                bgcolor: 'grey.50',
                 borderLeft: { md: 1 },
-                borderColor: { md: 'divider' },
-                pl: { md: 3 },
-                // 詳細が短くてもコメント欄は見やすい高さにし、長いときはコメント欄の中でスクロールする
-                height: { md: '60vh' },
+                borderTop: { xs: 1, md: 0 },
+                borderColor: 'divider',
+                px: 2.5,
+                pt: 2.5,
+                pb: 2,
                 minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
               <TaskComments
@@ -331,30 +433,9 @@ const TaskDetailDialog = ({
                 onChanged={onCommentsChanged}
               />
             </Box>
-          </DialogContent>
+          </Box>
         </>
       )}
-      <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        {task && canDeleteTask(user) && (
-          <Button color="error" onClick={() => onDelete(task)} sx={{ mr: 'auto' }}>
-            削除
-          </Button>
-        )}
-        <Button onClick={onClose} color="inherit">
-          閉じる
-        </Button>
-        {/* プロジェクトメンバーなら誰でもタスクを作成できるので、コピーも全員できる */}
-        {task && (
-          <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => onCopy(task)}>
-            コピー
-          </Button>
-        )}
-        {task && canEditTask(user, task) && (
-          <Button variant="contained" onClick={() => onEdit(task)}>
-            編集
-          </Button>
-        )}
-      </DialogActions>
       {cancelOpen && task && (
         <CancelRequestDialog
           taskTitle={task.title}

@@ -106,10 +106,12 @@ const CommentInput = ({ value, onChange, onSubmit, disabled, candidates }: Props
       )}
       <TextField
         multiline
-        minRows={2}
+        size="small"
+        minRows={1}
         maxRows={6}
         fullWidth
-        placeholder="コメントを書く（@ でメンション、Ctrl + Enter で送信）"
+        placeholder="コメントを入力（@ でメンション）"
+        title="Ctrl + Enter でも送信できます"
         value={value}
         inputRef={inputRef}
         onChange={(e) => {

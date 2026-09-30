@@ -185,7 +185,10 @@ const TaskComments = ({ user, projectId, taskId, onChanged }: Props) => {
                       px: 1.25,
                       py: 1,
                       borderRadius: 2,
-                      bgcolor: comment.user.id === user.id ? 'rgba(79, 70, 229, 0.08)' : 'grey.100',
+                      bgcolor:
+                        comment.user.id === user.id
+                          ? 'rgba(79, 70, 229, 0.08)'
+                          : 'background.paper',
                     }}
                   >
                     <Typography
@@ -202,25 +205,33 @@ const TaskComments = ({ user, projectId, taskId, onChanged }: Props) => {
         </Stack>
       </Box>
 
-      <Stack component="form" spacing={1} onSubmit={handleSubmit} noValidate sx={{ mt: 1.5 }}>
-        <CommentInput
-          value={body}
-          onChange={setBody}
-          onSubmit={() => handleSubmit()}
-          disabled={sending}
-          candidates={mentionable.filter((m) => m.id !== user.id)}
-        />
-        <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
-          <Button
-            type="submit"
-            variant="contained"
-            size="small"
-            disabled={body.trim() === ''}
-            loading={sending}
-          >
-            送信
-          </Button>
-        </Stack>
+      {/* 入力欄と送信ボタンは横一列で、コメント欄の一番下に固定する(一覧だけがスクロールする) */}
+      <Stack
+        component="form"
+        direction="row"
+        spacing={1}
+        onSubmit={handleSubmit}
+        noValidate
+        sx={{ mt: 1.5, alignItems: 'flex-end', flexShrink: 0 }}
+      >
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <CommentInput
+            value={body}
+            onChange={setBody}
+            onSubmit={() => handleSubmit()}
+            disabled={sending}
+            candidates={mentionable.filter((m) => m.id !== user.id)}
+          />
+        </Box>
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={body.trim() === ''}
+          loading={sending}
+          sx={{ flexShrink: 0, whiteSpace: 'nowrap', minHeight: 40 }}
+        >
+          送信
+        </Button>
       </Stack>
     </Stack>
   )

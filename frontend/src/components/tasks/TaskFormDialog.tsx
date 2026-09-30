@@ -245,11 +245,11 @@ const TaskFormDialog = ({
               helperText={show('title') ?? `${title.trim().length} / ${TITLE_MAX_LENGTH}`}
               disabled={saving || limited}
             />
-            {/* 1行目: ステータス・期限・画面名 */}
+            {/* ステータス・期限 / 画面名・タグ の2行2列 */}
             <Box
               sx={{
                 display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
                 gap: 2,
               }}
             >
@@ -319,8 +319,64 @@ const TaskFormDialog = ({
                   </MenuItem>
                 ))}
               </TextField>
+              {/* タグ(複数選択) */}
+              <Autocomplete
+                multiple
+                options={tags as TagRef[]}
+                value={selectedTags}
+                onChange={(_e, value) => setSelectedTags(value)}
+                getOptionLabel={(option) => option.name}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                filterSelectedOptions
+                disableCloseOnSelect
+                readOnly={limited}
+                disabled={saving}
+                renderOption={({ key, ...props }, option) => (
+                  <li key={key} {...props}>
+                    <Box sx={{ width: 84, flexShrink: 0 }}>
+                      <TagLabel tag={option} size="medium" />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {tags.find((tag) => tag.id === option.id)?.description}
+                    </Typography>
+                  </li>
+                )}
+                renderValue={(value, getItemProps) =>
+                  value.map((option, index) => {
+                    const { key, ...itemProps } = getItemProps({ index })
+                    return (
+                      <Chip
+                        key={key}
+                        {...itemProps}
+                        label={option.name}
+                        size="small"
+                        sx={{
+                          bgcolor: option.color,
+                          color: option.text_color,
+                          fontWeight: 700,
+                          '& .MuiChip-deleteIcon': { color: option.text_color, opacity: 0.7 },
+                        }}
+                      />
+                    )
+                  })
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="タグ"
+                    placeholder={
+                      limited
+                        ? undefined
+                        : selectedTags.length === 0
+                          ? 'クリックしてタグを追加'
+                          : '追加'
+                    }
+                    helperText={limited ? ' ' : '複数選べます'}
+                  />
+                )}
+              />
             </Box>
-            {/* 2行目: 担当者(複数選択) */}
+            {/* その下に担当者(複数選択) */}
             <Autocomplete
               multiple
               options={assigneeOptions}
@@ -359,62 +415,6 @@ const TaskFormDialog = ({
                   helperText={
                     show('assignees') ?? (limited ? ' ' : 'プロジェクトメンバーから複数人選べます')
                   }
-                />
-              )}
-            />
-            {/* タグ(複数選択) */}
-            <Autocomplete
-              multiple
-              options={tags as TagRef[]}
-              value={selectedTags}
-              onChange={(_e, value) => setSelectedTags(value)}
-              getOptionLabel={(option) => option.name}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              filterSelectedOptions
-              disableCloseOnSelect
-              readOnly={limited}
-              disabled={saving}
-              renderOption={({ key, ...props }, option) => (
-                <li key={key} {...props}>
-                  <Box sx={{ width: 84, flexShrink: 0 }}>
-                    <TagLabel tag={option} size="medium" />
-                  </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    {tags.find((tag) => tag.id === option.id)?.description}
-                  </Typography>
-                </li>
-              )}
-              renderValue={(value, getItemProps) =>
-                value.map((option, index) => {
-                  const { key, ...itemProps } = getItemProps({ index })
-                  return (
-                    <Chip
-                      key={key}
-                      {...itemProps}
-                      label={option.name}
-                      size="small"
-                      sx={{
-                        bgcolor: option.color,
-                        color: option.text_color,
-                        fontWeight: 700,
-                        '& .MuiChip-deleteIcon': { color: option.text_color, opacity: 0.7 },
-                      }}
-                    />
-                  )
-                })
-              }
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="タグ"
-                  placeholder={
-                    limited
-                      ? undefined
-                      : selectedTags.length === 0
-                        ? 'クリックしてタグを追加'
-                        : '追加'
-                  }
-                  helperText={limited ? ' ' : '複数選べます'}
                 />
               )}
             />
