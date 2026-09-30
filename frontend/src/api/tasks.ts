@@ -51,6 +51,7 @@ const base = (projectId: number) => `/projects/${projectId}/tasks`
 export type TaskFilter = {
   q: string // タイトル・説明・修正内容・修正理由・メモに含まれる文字
   assigneeId: number | '' // '' はすべて
+  tagId: number | '' // このタグが付いているタスク。'' はすべて
   screenId: number | '' // '' はすべて
   deadlineFrom: string // "YYYY-MM-DD"。'' は指定なし
   deadlineTo: string
@@ -60,6 +61,7 @@ export type TaskFilter = {
 export const EMPTY_TASK_FILTER: TaskFilter = {
   q: '',
   assigneeId: '',
+  tagId: '',
   screenId: '',
   deadlineFrom: '',
   deadlineTo: '',
@@ -70,6 +72,7 @@ export const EMPTY_TASK_FILTER: TaskFilter = {
 export const isFiltering = (filter: TaskFilter) =>
   filter.q.trim() !== '' ||
   filter.assigneeId !== '' ||
+  filter.tagId !== '' ||
   filter.screenId !== '' ||
   filter.deadlineFrom !== '' ||
   filter.deadlineTo !== '' ||
@@ -85,6 +88,7 @@ export const fetchTasks = (
   if (withDetail) params.set('detail', '1')
   if (filter.q.trim() !== '') params.set('q', filter.q.trim())
   if (filter.assigneeId !== '') params.set('assignee_id', String(filter.assigneeId))
+  if (filter.tagId !== '') params.set('tag_id', String(filter.tagId))
   if (filter.screenId !== '') params.set('screen_id', String(filter.screenId))
   if (filter.deadlineFrom !== '') params.set('deadline_from', filter.deadlineFrom)
   if (filter.deadlineTo !== '') params.set('deadline_to', filter.deadlineTo)

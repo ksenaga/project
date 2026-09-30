@@ -17,7 +17,9 @@ import {
   DEADLINE_COLORS,
   type DeadlineColor,
 } from '../../constants/deadlineColor'
+import type { Tag } from '../../api/tags'
 import type { Member } from '../../api/users'
+import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
 
 type Props = {
@@ -25,14 +27,15 @@ type Props = {
   onChange: (filter: TaskFilter) => void
   members: Member[]
   screens: Screen[]
+  tags: Tag[]
   // 絞り込み中の表示件数(絞り込んでいないときは null)
   resultCount: number | null
 }
 
 const fieldSx = { bgcolor: 'background.paper' }
 
-// タスク一覧の絞り込み(文字・担当者・画面名・期限・期限の色。すべての条件に当てはまるものを表示)
-const TaskFilterBar = ({ filter, onChange, members, screens, resultCount }: Props) => {
+// タスク一覧の絞り込み(文字・担当者・タグ・画面名・期限・期限の色。すべての条件に当てはまるものを表示)
+const TaskFilterBar = ({ filter, onChange, members, screens, tags, resultCount }: Props) => {
   const active = isFiltering(filter)
 
   return (
@@ -90,6 +93,23 @@ const TaskFilterBar = ({ filter, onChange, members, screens, resultCount }: Prop
               <UserAvatar user={m} size={20} />
               <span>{m.name}</span>
             </Stack>
+          </MenuItem>
+        ))}
+      </TextField>
+      <TextField
+        select
+        size="small"
+        label="タグ"
+        value={filter.tagId}
+        onChange={(e) =>
+          onChange({ ...filter, tagId: e.target.value === '' ? '' : Number(e.target.value) })
+        }
+        sx={{ width: 160, bgcolor: 'background.paper' }}
+      >
+        <MenuItem value="">すべて</MenuItem>
+        {tags.map((tag) => (
+          <MenuItem key={tag.id} value={tag.id} title={tag.description}>
+            <TagLabel tag={tag} />
           </MenuItem>
         ))}
       </TextField>

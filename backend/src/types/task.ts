@@ -104,6 +104,8 @@ export type TaskFilter = {
   // タイトル・説明・修正内容・修正理由・メモに含まれる文字
   q?: string
   assigneeId?: number
+  // このタグが付いているタスク
+  tagId?: number
   // null は「画面名が未設定」
   screenId?: number | null
   // 期限の範囲("YYYY-MM-DD"。どちらか片方だけでもよい)

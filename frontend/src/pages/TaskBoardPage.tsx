@@ -158,8 +158,8 @@ const TaskBoardPage = () => {
   const [filter, setFilter] = useState<TaskFilter>(EMPTY_TASK_FILTER)
   // 文字検索は入力が止まってから実行する
   const q = useDebouncedValue(filter.q, 300)
-  const { assigneeId, screenId, deadlineFrom, deadlineTo, deadlineColor } = filter
-  const appliedFilter = { q, assigneeId, screenId, deadlineFrom, deadlineTo, deadlineColor }
+  const { assigneeId, tagId, screenId, deadlineFrom, deadlineTo, deadlineColor } = filter
+  const appliedFilter = { q, assigneeId, tagId, screenId, deadlineFrom, deadlineTo, deadlineColor }
   const filtering = isFiltering(appliedFilter)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [dialog, setDialog] = useState<DialogState>(null)
@@ -203,7 +203,7 @@ const TaskBoardPage = () => {
       fetchProject(projectId),
       fetchTasks(
         projectId,
-        { q, assigneeId, screenId, deadlineFrom, deadlineTo, deadlineColor },
+        { q, assigneeId, tagId, screenId, deadlineFrom, deadlineTo, deadlineColor },
         // リスト表示では説明・メモなどの列も出せるよう、詳細の項目も取得する
         { withDetail: viewMode === 'table' },
       ),
@@ -235,6 +235,7 @@ const TaskBoardPage = () => {
     reloadKey,
     q,
     assigneeId,
+    tagId,
     screenId,
     deadlineFrom,
     deadlineTo,
@@ -487,6 +488,7 @@ const TaskBoardPage = () => {
           onChange={setFilter}
           members={project.members}
           screens={screens}
+          tags={tags}
           resultCount={filtering && tasks ? tasks.length : null}
         />
       )}

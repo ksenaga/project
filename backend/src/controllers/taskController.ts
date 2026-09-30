@@ -66,16 +66,17 @@ const parseTaskInput = (body: unknown, { partial }: { partial: boolean }) => {
 const Q_MAX_LENGTH = 100
 
 // 一覧の絞り込み条件
-// ?q=文字&assignee_id=1&screen_id=2&deadline_from=2026-10-01&deadline_to=2026-10-31&deadline_color=red
+// ?q=文字&assignee_id=1&tag_id=3&screen_id=2&deadline_from=2026-10-01&deadline_to=2026-10-31&deadline_color=red
 // screen_id=none は画面名が未設定
 const parseTaskFilter = (query: Request['query']): TaskFilter => {
   const filter: TaskFilter = {}
-  const { q, assignee_id, screen_id, deadline_from, deadline_to, deadline_color } = query
+  const { q, assignee_id, tag_id, screen_id, deadline_from, deadline_to, deadline_color } = query
   if (q !== undefined) {
     if (typeof q !== 'string' || q.length > Q_MAX_LENGTH) throw badRequest()
     if (q.trim() !== '') filter.q = q.trim()
   }
   if (assignee_id !== undefined && assignee_id !== '') filter.assigneeId = parseId(assignee_id)
+  if (tag_id !== undefined && tag_id !== '') filter.tagId = parseId(tag_id)
   if (screen_id !== undefined && screen_id !== '') {
     filter.screenId = screen_id === 'none' ? null : parseId(screen_id)
   }

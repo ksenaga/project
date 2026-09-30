@@ -130,6 +130,12 @@ export const findByProject = async (
         .where('ta.user_id', filter.assigneeId),
     )
   }
+  // タグが付いているタスク
+  if (filter.tagId !== undefined) {
+    query.whereExists(
+      db('task_tags as tg').whereRaw('tg.task_id = t.id').where('tg.tag_id', filter.tagId),
+    )
+  }
   if (filter.screenId === null) query.whereNull('t.screen_id')
   else if (filter.screenId !== undefined) query.where('t.screen_id', filter.screenId)
   if (filter.deadlineFrom) query.where('t.deadline', '>=', filter.deadlineFrom)
