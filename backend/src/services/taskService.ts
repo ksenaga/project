@@ -65,9 +65,10 @@ export const list = async (
   projectId: number,
   filter: TaskFilter,
   user: AuthUser,
-): Promise<TaskSummary[]> => {
+  options: { withDetail?: boolean } = {},
+): Promise<(TaskSummary | Task)[]> => {
   await ensureProjectAccess(projectId, user)
-  return taskRepository.findByProject(projectId, filter)
+  return taskRepository.findByProject(projectId, filter, options)
 }
 
 export const get = async (projectId: number, id: number, user: AuthUser): Promise<Task> => {
@@ -174,7 +175,7 @@ export const update = async (
   return updated
 }
 
-// 中止依頼(一般ユーザーのみ)。管理者と担当リーダーに通知する。通知した人数を返す
+// 中止依頼(担当者に含まれる一般ユーザーのみ)。管理者と担当リーダーに通知する。通知した人数を返す
 export const requestCancel = async (
   projectId: number,
   id: number,
@@ -185,6 +186,10 @@ export const requestCancel = async (
   // 管理者・リーダーは自分で対応中止にできるので、依頼はできない
   if (user.role !== ROLE.MEMBER) throw forbidden()
   const task = await getTask(projectId, id)
+  // 担当者以外は依頼できない
+  if (!task.assignees.some((assignee) => assignee.id === user.id)) {
+    throw forbidden('担当しているタスクのみ中止を依頼できます')
+  }
   if (CLOSED_STATUSES.includes(task.status) && task.list_id === null) {
     throw conflict('完了・対応中止のタスクは中止を依頼できません')
   }

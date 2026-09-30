@@ -98,9 +98,11 @@ const TaskDetailDialog = ({
   // 中止依頼を送ったとき(通知した人数)
   const [cancelSent, setCancelSent] = useState<number | null>(null)
   // 一般ユーザーは、完了・対応中止でないタスクの中止を管理者・リーダーに依頼できる
+  // (担当者に含まれるタスクのみ)
   const canRequestCancel =
     task !== null &&
     user.role === ROLE.MEMBER &&
+    task.assignees.some((assignee) => assignee.id === user.id) &&
     !(CLOSED_STATUSES.includes(task.status) && task.list_id === null)
   const [error, setError] = useState<string | null>(null)
 

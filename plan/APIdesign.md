@@ -114,6 +114,7 @@ Request
 	deadline_to=2026-10-31	期限がこの日以前(deadline_from より前の日付は 400)
 	deadline_color=red	期限の色。red:7日以内(期限切れを含む) yellow:8〜14日 green:15日以上
 		※今日から期限までの日数で判定。完了・対応中止のタスクは含まない
+	detail=1	説明・修正内容・修正理由・Git URL・メモも返す(リスト表示用。省略時は返さない)
 例: /api/projects/1/tasks?q=ログイン&assignee_id=2&screen_id=3&deadline_color=yellow
 タスク作成 POST /api/projects/{project_id}/tasks
 {
@@ -173,7 +174,7 @@ Request
 
 【タスクの中止依頼】
 中止依頼 POST /api/projects/{project_id}/tasks/{id}/cancel-request
-※一般ユーザー(プロジェクトメンバー)のみ。全管理者と担当リーダーに通知する。完了・対応中止のタスクは不可
+※担当者に含まれる一般ユーザーのみ。全管理者と担当リーダーに通知する。完了・対応中止のタスクは不可
 {
 	"reason":"仕様変更で不要になったため"	※任意。200文字以内
 }
@@ -480,6 +481,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"すべてのリストを指定してください"(リストの並べ替え)
 ・"リストが存在しません"(タスクの list_id)
 ・"完了・対応中止のタスクは中止を依頼できません"(409。中止依頼)
+・"担当しているタスクのみ中止を依頼できます"(403。中止依頼)
 ・"期限の範囲が正しくありません"(タスク一覧の deadline_from が deadline_to より後)
 ・"画面名はプロジェクトに登録されているものから選んでください"
 ・"タスクは未対応か対応中で作成してください"
@@ -555,7 +557,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 失敗 401 or 403(一般ユーザー) or 404
 中止依頼 POST /api/projects/{project_id}/tasks/{id}/cancel-request
 成功 201
-失敗 400 or 401 or 403(一般ユーザー以外・メンバーでない) or 404 or 409(完了・対応中止のタスク)
+失敗 400 or 401 or 403(一般ユーザー以外・担当者でない) or 404 or 409(完了・対応中止のタスク)
 
 リスト一覧取得 GET /api/projects/{project_id}/lists
 成功 200

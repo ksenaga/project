@@ -82,12 +82,14 @@ const activeTasks = (projectId: number, conn: Conn = db) =>
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`)
 
 // 期限が近い順。filter の条件はすべて満たすもの(AND)
+// withDetail: true なら説明・修正内容・修正理由・Git URL・メモも返す(リスト表示用)
 export const findByProject = async (
   projectId: number,
   filter: TaskFilter = {},
-): Promise<TaskSummary[]> => {
+  { withDetail = false }: { withDetail?: boolean } = {},
+): Promise<(TaskSummary | Task)[]> => {
   const query = activeTasks(projectId)
-    .select(summaryColumns)
+    .select(withDetail ? detailColumns : summaryColumns)
     .orderBy([{ column: 't.deadline' }, { column: 't.id' }])
 
   if (filter.q) {

@@ -7,12 +7,16 @@ import {
   Skeleton,
   Snackbar,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
+import TableRowsOutlinedIcon from '@mui/icons-material/TableRowsOutlined'
 import TuneIcon from '@mui/icons-material/Tune'
+import ViewKanbanOutlinedIcon from '@mui/icons-material/ViewKanbanOutlined'
 import {
   closestCenter,
   defaultKeyboardCoordinateGetter,
@@ -71,6 +75,7 @@ import TaskColumnPreview from '../components/tasks/TaskColumnPreview'
 import TaskDetailDialog from '../components/tasks/TaskDetailDialog'
 import TaskFilterBar from '../components/tasks/TaskFilterBar'
 import TaskFormDialog from '../components/tasks/TaskFormDialog'
+import TaskTable from '../components/tasks/TaskTable'
 import { CARD_WIDTH } from '../constants/board'
 import { ROLE } from '../constants/role'
 import {
@@ -117,6 +122,26 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (event, args) =>
 const collisionDetection: CollisionDetection = (args) =>
   args.active.data.current?.type === 'list' ? closestCenter(args) : rectIntersection(args)
 
+// 表示方法(ボード / リスト)。選んだ表示はブラウザに覚えておく
+type ViewMode = 'board' | 'table'
+const VIEW_MODE_KEY = 'taskViewMode'
+
+const loadViewMode = (): ViewMode => {
+  try {
+    return localStorage.getItem(VIEW_MODE_KEY) === 'table' ? 'table' : 'board'
+  } catch {
+    return 'board'
+  }
+}
+
+const saveViewMode = (mode: ViewMode) => {
+  try {
+    localStorage.setItem(VIEW_MODE_KEY, mode)
+  } catch {
+    // 保存できなくても表示は切り替える
+  }
+}
+
 const TaskBoardPage = () => {
   const projectId = Number(useParams().projectId)
   // 通知から開いたとき(?task=ID)は、そのタスクの詳細を開く
@@ -125,7 +150,7 @@ const TaskBoardPage = () => {
   const { user, setUser } = useAuth()
 
   const [project, setProject] = useState<ProjectDetail | null>(null)
-  const [tasks, setTasks] = useState<TaskSummary[] | null>(null)
+  const [tasks, setTasks] = useState<(TaskSummary & Partial<Task>)[] | null>(null)
   const [screens, setScreens] = useState<Screen[]>([])
   const [lists, setLists] = useState<BoardList[]>([])
   const [tags, setTags] = useState<Tag[]>([])
@@ -139,6 +164,7 @@ const TaskBoardPage = () => {
   const [dialog, setDialog] = useState<DialogState>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [activeTask, setActiveTask] = useState<TaskSummary | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode)
   // ドラッグしているリスト
   const [activeList, setActiveList] = useState<BoardList | null>(null)
 
@@ -174,7 +200,12 @@ const TaskBoardPage = () => {
     let ignore = false
     Promise.all([
       fetchProject(projectId),
-      fetchTasks(projectId, { q, assigneeId, screenId, deadlineFrom, deadlineTo, deadlineColor }),
+      fetchTasks(
+        projectId,
+        { q, assigneeId, screenId, deadlineFrom, deadlineTo, deadlineColor },
+        // リスト表示では説明・メモなどの列も出せるよう、詳細の項目も取得する
+        { withDetail: viewMode === 'table' },
+      ),
       fetchScreens(projectId),
       fetchBoardLists(projectId),
     ])
@@ -207,6 +238,7 @@ const TaskBoardPage = () => {
     deadlineFrom,
     deadlineTo,
     deadlineColor,
+    viewMode,
     handleAuthError,
   ])
 
@@ -414,6 +446,29 @@ const TaskBoardPage = () => {
           </Box>
         )}
         {project && (
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={viewMode}
+            onChange={(_e, mode: ViewMode | null) => {
+              if (!mode) return
+              setViewMode(mode)
+              saveViewMode(mode)
+            }}
+            aria-label="表示の切り替え"
+            sx={{ flexShrink: 0, bgcolor: 'background.paper' }}
+          >
+            <ToggleButton value="board" aria-label="ボード表示" sx={{ px: 1.5, gap: 0.75 }}>
+              <ViewKanbanOutlinedIcon fontSize="small" />
+              ボード
+            </ToggleButton>
+            <ToggleButton value="table" aria-label="リスト表示" sx={{ px: 1.5, gap: 0.75 }}>
+              <TableRowsOutlinedIcon fontSize="small" />
+              リスト
+            </ToggleButton>
+          </ToggleButtonGroup>
+        )}
+        {project && (
           <Button
             variant="outlined"
             startIcon={<TuneIcon />}
@@ -454,8 +509,17 @@ const TaskBoardPage = () => {
         </Alert>
       )}
 
+      {/* リスト表示(1行に1タスク) */}
+      {!loadError && viewMode === 'table' && tasks && (
+        <TaskTable
+          tasks={tasks}
+          lists={lists}
+          onOpen={(task) => setDialog({ type: 'detail', taskId: task.id })}
+        />
+      )}
+
       {/* ボード */}
-      {!loadError && (
+      {!loadError && viewMode === 'board' && (
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetection}

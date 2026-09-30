@@ -72,8 +72,14 @@ export const isFiltering = (filter: TaskFilter) =>
   filter.deadlineTo !== '' ||
   filter.deadlineColor !== ''
 
-export const fetchTasks = (projectId: number, filter: TaskFilter = EMPTY_TASK_FILTER) => {
+// withDetail: true なら説明・修正内容・修正理由・Git URL・メモも返る(リスト表示用)
+export const fetchTasks = (
+  projectId: number,
+  filter: TaskFilter = EMPTY_TASK_FILTER,
+  { withDetail = false }: { withDetail?: boolean } = {},
+) => {
   const params = new URLSearchParams()
+  if (withDetail) params.set('detail', '1')
   if (filter.q.trim() !== '') params.set('q', filter.q.trim())
   if (filter.assigneeId !== '') params.set('assignee_id', String(filter.assigneeId))
   if (filter.screenId !== '') params.set('screen_id', String(filter.screenId))
@@ -81,7 +87,9 @@ export const fetchTasks = (projectId: number, filter: TaskFilter = EMPTY_TASK_FI
   if (filter.deadlineTo !== '') params.set('deadline_to', filter.deadlineTo)
   if (filter.deadlineColor !== '') params.set('deadline_color', filter.deadlineColor)
   const query = params.toString()
-  return request<TaskSummary[]>(query ? `${base(projectId)}?${query}` : base(projectId))
+  return request<(TaskSummary & Partial<Task>)[]>(
+    query ? `${base(projectId)}?${query}` : base(projectId),
+  )
 }
 
 export const fetchTask = (projectId: number, id: number) =>

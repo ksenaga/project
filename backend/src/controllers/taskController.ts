@@ -97,9 +97,11 @@ const params = (req: Request) => ({
 })
 
 // GET /api/projects/:projectId/tasks
+// ?detail=1 を付けると、説明・修正内容・修正理由・Git URL・メモも返す(リスト表示用)
 export const list = async (req: Request, res: Response) => {
   const { projectId } = params(req)
-  res.json(await taskService.list(projectId, parseTaskFilter(req.query), req.user!))
+  const withDetail = req.query.detail === '1' || req.query.detail === 'true'
+  res.json(await taskService.list(projectId, parseTaskFilter(req.query), req.user!, { withDetail }))
 }
 
 // GET /api/projects/:projectId/tasks/:id
