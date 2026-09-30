@@ -196,49 +196,6 @@ npm run dev       # http://localhost:5173（/api はバックエンドに転送�
 
 ブラウザで http://localhost:5173 を開き、`admin` / `admin` でログインする。
 
-### コンテナで動かす（app-project）
-
-フロントエンドとバックエンドを1つのコンテナ（`app-project`）にまとめて動かせる。
-ビルドしたフロントエンドを Express が API と一緒に配るので、画面と API は同じ URL になる。
-
-```bash
-# 初回のみ: JWT の署名に使う値を用意する（プロジェクト直下の .env）
-cp .env.example .env
-# .env の JWT_SECRET に `openssl rand -hex 32` で生成した値を入れる
-
-# ビルドして起動（DB も一緒に起動する）
-docker compose --profile app up -d --build
-```
-
-ブラウザで http://localhost:8080 を開く。
-
-* 起動するたびに、未適用のマイグレーションと初期データ（管理者）を反映してから起動する
-* DB は開発と同じ `db-project` を使う
-* `docker compose up -d` だけでは DB しか起動しない（開発では DB だけを使うため）
-* 止めるときは `docker compose --profile app down`
-* Cookie に Secure を付けるため、localhost 以外で公開するときは HTTPS にする
-
-### コンテナで開発する（ホットリロード）
-
-Mac に Node.js を入れなくても、コンテナ（`app-project-dev`）の中でフロントエンドとバックエンドを動かして開発できる。
-ソースをマウントしているので、保存するとすぐ反映される（画面は再読み込みなしで更新、バックエンドは自動で再起動）。
-
-```bash
-# 初回のみ: プロジェクト直下の .env を用意する（上の「コンテナで動かす」と同じ）
-
-# 起動（DB も一緒に起動する）。Mac で npm run dev を動かしているときは止めてから
-docker compose --profile dev up -d --build
-
-# ログを見る
-docker logs -f app-project-dev
-```
-
-ブラウザで http://localhost:5173 を開く（/api は同じコンテナのバックエンドに転送される）。
-
-* 起動するたびに、未適用のマイグレーションと初期データ（管理者）を反映する
-* node_modules はコンテナ専用（Linux 用）で、名前付きボリュームに置く。package-lock.json が変わったときだけ入れ直す
-* 止めるときは `docker compose --profile dev down`
-
 ### マイグレーション
 
 | コマンド（backend で実行） | 内容 |
