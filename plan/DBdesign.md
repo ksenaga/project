@@ -106,6 +106,15 @@ message	varchar(255)			v
 read_at	datetime(3)				
 created_at	datetime(3)			v	
 
+task_comments(タスクのコメント)(テーブル・列にDBのコメントあり)(task_id・created_at にインデックス)(物理削除)
+列名	データ・タイプ	PK	FK	Not null	オートインクリメント
+id	bigint unsigned	v		v	v
+task_id	bigint unsigned		tasks.id	v	
+user_id	bigint unsigned		users.id	v	
+type	varchar(20)			v	
+body	text			v	
+created_at	datetime(3)			v	
+
 screens(画面名管理)(project_idとnameで複合ユニーク制約)(物理削除)
 列名	データ・タイプ	PK	FK	Not null	オートインクリメント
 id	bigint unsigned	v		v	v
@@ -134,7 +143,8 @@ updated_at	datetime(3)
 ・以前の tasks.screen(自由入力の文字列)は、マイグレーション(20260929000001_create_screens)で screens に移し、tasks.screen_id に置き換えた
 
 DBのコメント
-・tags / task_tags / notifications はテーブルと列に DB のコメントを付けている(それ以外のテーブルは未設定)
+・tags / task_tags / notifications / task_comments はテーブルと列に DB のコメントを付けている(それ以外のテーブルは未設定)
+・task_comments.type:comment(人が書いたコメント)/ move(タスクを移動したときの自動コメント。誰がどこからどこへ移動したかのログ代わり。削除できない)
 ・notifications.type:project_member(プロジェクトのメンバーに追加された)/ task_assignee(タスクの担当者になった)/ task_review(タスクがレビュー中になった)/ task_cancel_request(中止依頼)。message は通知したときの名前で作った文章。read_at が NULL なら未読
 
 テーブルの管理

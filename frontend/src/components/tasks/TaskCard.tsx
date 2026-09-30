@@ -1,4 +1,5 @@
 import { Box, Paper, Stack, Tooltip, Typography } from '@mui/material'
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import { useDraggable } from '@dnd-kit/core'
 import type { TaskSummary } from '../../api/tasks'
@@ -95,6 +96,17 @@ export const TaskCardContent = ({
           <EventOutlinedIcon sx={{ fontSize: 14 }} />
           {formatDate(task.deadline)}
         </Box>
+        {task.comment_count > 0 && (
+          <Stack
+            direction="row"
+            spacing={0.25}
+            sx={{ alignItems: 'center', color: 'text.secondary', ml: 1, mr: 'auto' }}
+            aria-label={`コメント${task.comment_count}件`}
+          >
+            <ChatBubbleOutlineIcon sx={{ fontSize: 14 }} />
+            <Typography variant="caption">{task.comment_count}</Typography>
+          </Stack>
+        )}
         <Tooltip title={`担当: ${assigneeNames}`}>
           <Stack direction="row" sx={{ alignItems: 'center' }}>
             {task.assignees.slice(0, MAX_AVATARS).map((assignee, i) => (

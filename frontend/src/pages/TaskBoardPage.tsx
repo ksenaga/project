@@ -515,6 +515,9 @@ const TaskBoardPage = () => {
           tasks={tasks}
           lists={lists}
           onOpen={(task) => setDialog({ type: 'detail', taskId: task.id })}
+          onAdd={
+            project ? () => setDialog({ type: 'create', status: TASK_STATUS.TODO }) : undefined
+          }
         />
       )}
 
@@ -610,6 +613,7 @@ const TaskBoardPage = () => {
           taskId={detailTaskId}
           lists={lists}
           tags={tags}
+          onCommentsChanged={reload}
           onClose={() => changeDialog(null)}
           onEdit={(task) => changeDialog({ type: 'edit', task })}
           onDelete={(task) => changeDialog({ type: 'delete', task })}

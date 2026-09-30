@@ -1,6 +1,8 @@
 import { db } from '../db/knex'
 import { badRequest, conflict, forbidden, notFound } from '../errors/HttpError'
 import * as projectMemberRepository from '../repositories/projectMemberRepository'
+import * as boardListRepository from '../repositories/boardListRepository'
+import * as commentRepository from '../repositories/commentRepository'
 import * as tagRepository from '../repositories/tagRepository'
 import * as taskRepository from '../repositories/taskRepository'
 import {
@@ -16,6 +18,7 @@ import {
   type TaskInput,
   type TaskSummary,
 } from '../types/task'
+import { COMMENT_TYPE } from '../types/comment'
 import { ROLE, type AuthUser } from '../types/user'
 import * as boardListService from './boardListService'
 import * as notificationService from './notificationService'
@@ -59,6 +62,26 @@ const ensureScreenInProject = async (projectId: number, screenId: number | undef
   if (!(await screenService.exists(projectId, screenId))) {
     throw badRequest('画面名はプロジェクトに登録されているものから選んでください')
   }
+}
+
+// タスクが入っているリストの名前(追加したリストはそのリスト名、既存の5つはステータス)
+const listName = (task: Task, lists: { id: number; name: string }[]) =>
+  task.list_id !== null
+    ? (lists.find((list) => list.id === task.list_id)?.name ?? task.status)
+    : task.status
+
+const logMove = async (projectId: number, before: Task, after: Task, user: AuthUser) => {
+  if (before.status === after.status && before.list_id === after.list_id) return
+  const lists = await boardListRepository.findByProject(projectId)
+  const from = listName(before, lists)
+  const to = listName(after, lists)
+  if (from === to) return
+  await commentRepository.create(
+    after.id,
+    user.id,
+    COMMENT_TYPE.MOVE,
+    `${user.name}さんがタスクを「${from}」から「${to}」に移動しました`,
+  )
 }
 
 export const list = async (
@@ -166,6 +189,9 @@ export const update = async (
     .map((a) => a.id)
     .filter((userId) => !before.includes(userId))
   await notificationService.notifyAssigned(projectId, updated, newAssignees, user)
+
+  // 別のリストへ移動したら、誰がどこからどこへ移動したかを自動でコメントに残す
+  await logMove(projectId, current, updated, user)
 
   // レビュー中になったら、管理者と担当リーダーへ通知する
   const isReview = (task: Task) => task.status === TASK_STATUS.REVIEW && task.list_id === null

@@ -16,8 +16,11 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
+  Tooltip,
   Typography,
 } from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import ViewColumnOutlinedIcon from '@mui/icons-material/ViewColumnOutlined'
 import type { BoardList } from '../../api/boardLists'
@@ -42,6 +45,7 @@ type ColumnKey =
   | 'reason'
   | 'git'
   | 'memo'
+  | 'comments'
 
 type Column = {
   key: ColumnKey
@@ -249,6 +253,21 @@ const COLUMNS: Column[] = [
     sortValue: (task) => task.memo ?? '￿',
     render: (task) => <LongText value={task.memo} />,
   },
+  {
+    key: 'comments',
+    label: 'コメント',
+    width: 110,
+    sortValue: (task) => task.comment_count,
+    render: (task) =>
+      task.comment_count > 0 ? (
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+          <ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />
+          <Typography variant="body2">{task.comment_count}</Typography>
+        </Stack>
+      ) : (
+        <Empty />
+      ),
+  },
 ]
 
 // 最初に表示する列
@@ -291,11 +310,13 @@ type Props = {
   tasks: Row[]
   lists: BoardList[]
   onOpen: (task: Row) => void
+  // 渡したときだけ、タスクを追加するボタンを表示する
+  onAdd?: () => void
 }
 
 // タスクを1行ずつ並べた表。見出しをクリックすると、その列で並び替える。
 // 表示する列は「表示する項目」で選べる(タスク名は常に表示)
-const TaskTable = ({ tasks, lists, onOpen }: Props) => {
+const TaskTable = ({ tasks, lists, onOpen, onAdd }: Props) => {
   // 最初は期限が近い順
   const [sort, setSort] = useState<Sort>({ key: 'deadline', direction: 'asc' })
   const [visible, setVisible] = useState<ColumnKey[]>(loadVisible)
@@ -370,7 +391,20 @@ const TaskTable = ({ tasks, lists, onOpen }: Props) => {
 
   return (
     <Stack spacing={1} sx={{ flexGrow: 1, minHeight: 0 }}>
-      <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
+      <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+        {onAdd && (
+          <Tooltip title="タスクを追加">
+            <Button
+              size="small"
+              variant="outlined"
+              aria-label="タスクを追加"
+              onClick={onAdd}
+              sx={{ minWidth: 0, px: 0.75, bgcolor: 'background.paper' }}
+            >
+              <AddIcon fontSize="small" />
+            </Button>
+          </Tooltip>
+        )}
         <Button
           size="small"
           startIcon={<ViewColumnOutlinedIcon />}

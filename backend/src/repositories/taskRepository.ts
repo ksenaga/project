@@ -11,6 +11,7 @@ import {
 } from '../types/task'
 import type { Member } from '../types/project'
 import type { TagRef } from '../types/tag'
+import * as commentRepository from './commentRepository'
 
 const summaryColumns = [
   't.id',
@@ -62,11 +63,16 @@ const findTagsByTaskIds = async (taskIds: number[]): Promise<Map<number, TagRef[
 // 担当者・タグ・画面名を付けて API の形にする
 const toTasks = async <T extends Row>(rows: T[]) => {
   const ids = rows.map((row) => row.id)
-  const [assignees, tags] = await Promise.all([findAssigneesByTaskIds(ids), findTagsByTaskIds(ids)])
+  const [assignees, tags, commentCounts] = await Promise.all([
+    findAssigneesByTaskIds(ids),
+    findTagsByTaskIds(ids),
+    commentRepository.countByTaskIds(ids),
+  ])
   return rows.map(({ screen_id, screen_name, ...rest }) => ({
     ...rest,
     assignees: assignees.get(rest.id) ?? [],
     tags: tags.get(rest.id) ?? [],
+    comment_count: commentCounts.get(rest.id) ?? 0,
     screen: screen_id === null ? null : { id: screen_id, name: screen_name! },
   }))
 }

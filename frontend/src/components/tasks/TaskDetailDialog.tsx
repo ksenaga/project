@@ -33,6 +33,7 @@ import LinkifiedText from '../LinkifiedText'
 import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
 import CancelRequestDialog from './CancelRequestDialog'
+import TaskComments from './TaskComments'
 
 type Props = {
   user: LoginUser
@@ -46,6 +47,8 @@ type Props = {
   lists: BoardList[]
   // タグの意味を表示するため
   tags: Tag[]
+  // コメントを投稿・削除したとき
+  onCommentsChanged: () => void
 }
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
@@ -92,6 +95,7 @@ const TaskDetailDialog = ({
   onCopy,
   lists,
   tags,
+  onCommentsChanged,
 }: Props) => {
   const [task, setTask] = useState<Task | null>(null)
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -181,7 +185,15 @@ const TaskDetailDialog = ({
               {task.title}
             </Typography>
           </DialogTitle>
-          <DialogContent sx={{ pb: 3.5 }}>
+          {/* 左に詳細、右にコメント */}
+          <DialogContent
+            sx={{
+              pb: 3.5,
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 400px' },
+              gap: 4,
+            }}
+          >
             <Stack spacing={3}>
               {cancelSent !== null && (
                 <Alert severity="success" onClose={() => setCancelSent(null)}>
@@ -263,6 +275,24 @@ const TaskDetailDialog = ({
                 <Text value={task.memo} linkify />
               </Field>
             </Stack>
+            <Box
+              component="aside"
+              sx={{
+                borderLeft: { md: 1 },
+                borderColor: { md: 'divider' },
+                pl: { md: 3 },
+                // 詳細が短くてもコメント欄は見やすい高さにし、長いときはコメント欄の中でスクロールする
+                height: { md: '60vh' },
+                minHeight: 0,
+              }}
+            >
+              <TaskComments
+                user={user}
+                projectId={projectId}
+                taskId={task.id}
+                onChanged={onCommentsChanged}
+              />
+            </Box>
           </DialogContent>
         </>
       )}

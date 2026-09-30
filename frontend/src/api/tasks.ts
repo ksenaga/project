@@ -15,6 +15,7 @@ export type TaskSummary = {
   tags: TagRef[] // タグ(タグの並び順)
   screen: ScreenRef | null
   list_id: number | null // 追加したリストに入っているときのリスト。既存の5つのときは null
+  comment_count: number // 人が書いたコメントの数(移動の自動コメントは数えない)
 }
 
 // 詳細で返るタスク

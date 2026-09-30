@@ -23,6 +23,9 @@ API設計
 タスク編集	PATCH	/api/projects/{project_id}/tasks/{id}
 タスク削除	DELETE	/api/projects/{project_id}/tasks/{id}
 中止依頼	POST	/api/projects/{project_id}/tasks/{id}/cancel-request
+コメント一覧取得	GET	/api/projects/{project_id}/tasks/{task_id}/comments
+コメント投稿	POST	/api/projects/{project_id}/tasks/{task_id}/comments
+コメント削除	DELETE	/api/projects/{project_id}/tasks/{task_id}/comments/{id}
 【画面名】
 機能	HTTPメソッド	URL
 画面名一覧取得	GET	/api/projects/{project_id}/screens
@@ -172,6 +175,28 @@ Request
 }
 リスト削除 DELETE /api/projects/{project_id}/lists/{id}
 
+【タスクのコメント】
+※閲覧・投稿はプロジェクトメンバー(管理者は全プロジェクト)。削除は書いた本人と管理者のみ
+※タスクを別のリストへ移動すると、type:"move" の自動コメント(「◯◯さんがタスクを「A」から「B」に移動しました」)が記録される。自動コメントは削除できない
+コメント一覧取得 GET /api/projects/{project_id}/tasks/{task_id}/comments
+※古い順
+[
+	{
+		"id":1,
+		"type":"comment",	※comment / move
+		"body":"原因を調査します",
+		"user":{"id":7,"name":"t_member"},	※書いた人(自動コメントは移動した人)
+		"created_at":"2026-09-30T03:21:48.042Z"
+	}
+]
+コメント投稿 POST /api/projects/{project_id}/tasks/{task_id}/comments
+{
+	"body":"原因を調査します"	※必須。2000文字以内
+}
+※投稿したコメント1件を返す
+コメント削除 DELETE /api/projects/{project_id}/tasks/{task_id}/comments/{id}
+(なし)
+
 【タスクの中止依頼】
 中止依頼 POST /api/projects/{project_id}/tasks/{id}/cancel-request
 ※担当者に含まれる一般ユーザーのみ。全管理者と担当リーダーに通知する。完了・対応中止のタスクは不可
@@ -307,7 +332,8 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 			"id":1,
 			"name":"ログイン画面"
 		},
-		"list_id":null	※追加したリストに入っているときはそのリストの ID(status は "対応中")
+		"list_id":null,	※追加したリストに入っているときはそのリストの ID(status は "対応中")
+		"comment_count":2	※人が書いたコメントの数(移動の自動コメントは数えない)
 	},
 	{}
 ]
@@ -481,6 +507,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"すべてのリストを指定してください"(リストの並べ替え)
 ・"リストが存在しません"(タスクの list_id)
 ・"完了・対応中止のタスクは中止を依頼できません"(409。中止依頼)
+・"自動で記録されたコメントは削除できません"(403。コメント削除)
 ・"担当しているタスクのみ中止を依頼できます"(403。中止依頼)
 ・"期限の範囲が正しくありません"(タスク一覧の deadline_from が deadline_to より後)
 ・"画面名はプロジェクトに登録されているものから選んでください"
@@ -555,6 +582,15 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 タスク削除 DELETE /api/projects/{project_id}/tasks/{id}
 成功 204
 失敗 401 or 403(一般ユーザー) or 404
+コメント一覧取得 GET /api/projects/{project_id}/tasks/{task_id}/comments
+成功 200
+失敗 401 or 403 or 404
+コメント投稿 POST /api/projects/{project_id}/tasks/{task_id}/comments
+成功 201
+失敗 400 or 401 or 403 or 404
+コメント削除 DELETE /api/projects/{project_id}/tasks/{task_id}/comments/{id}
+成功 204
+失敗 401 or 403(本人・管理者以外、自動コメント) or 404
 中止依頼 POST /api/projects/{project_id}/tasks/{id}/cancel-request
 成功 201
 失敗 400 or 401 or 403(一般ユーザー以外・担当者でない) or 404 or 409(完了・対応中止のタスク)
