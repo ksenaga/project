@@ -495,35 +495,47 @@ const TaskTable = ({ tasks, lists, onOpen, onAdd }: Props) => {
                     '.MuiTableRow-hover:hover &': { bgcolor: 'grey.100' },
                   }}
                 >
-                  {/* キーボードでも詳細を開けるよう、タスク名をボタンにする */}
-                  <Box
-                    component="button"
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onOpen(task)
-                    }}
-                    title={task.title}
-                    sx={{
-                      all: 'unset',
-                      display: 'block',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      fontSize: '0.875rem',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      maxWidth: '100%',
-                      '&:hover': { color: 'primary.main' },
-                      '&:focus-visible': {
-                        outline: 2,
-                        outlineColor: 'primary.main',
-                        borderRadius: 0.5,
-                      },
-                    }}
-                  >
-                    {task.title}
-                  </Box>
+                  {/* タスク名(キーボードでも詳細を開けるようボタンにする)と、コメントがあれば右端にアイコン */}
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <Box
+                      component="button"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onOpen(task)
+                      }}
+                      title={task.title}
+                      sx={{
+                        all: 'unset',
+                        display: 'block',
+                        flex: '1 1 auto',
+                        minWidth: 0,
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%',
+                        '&:hover': { color: 'primary.main' },
+                        '&:focus-visible': {
+                          outline: 2,
+                          outlineColor: 'primary.main',
+                          borderRadius: 0.5,
+                        },
+                      }}
+                    >
+                      {task.title}
+                    </Box>
+                    {task.comment_count > 0 && (
+                      <Tooltip title="コメントあり">
+                        <ChatBubbleOutlineIcon
+                          aria-label="コメントあり"
+                          sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0, ml: 'auto' }}
+                        />
+                      </Tooltip>
+                    )}
+                  </Stack>
                 </TableCell>
                 {columns.map((column) => (
                   <TableCell key={column.key} sx={{ maxWidth: column.width }}>
