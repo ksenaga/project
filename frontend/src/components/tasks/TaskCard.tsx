@@ -24,7 +24,7 @@ export const TaskCardContent = ({
   task: TaskSummary
   lifted?: boolean
 }) => {
-  // 7日以内は赤、8〜14日は黄色、15日以上は黄緑。完了・対応中止は色を付けない
+  // 7日以内は赤、8〜14日は黄色、15日以上は緑。完了・対応中止は色を付けない
   const color = deadlineColorOf(task)
   const colorStyle = color && DEADLINE_COLOR_STYLE[color]
   const assigneeNames = task.assignees.map((assignee) => assignee.name).join('、')

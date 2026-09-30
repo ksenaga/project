@@ -8,27 +8,32 @@ export const DEADLINE_YELLOW_MAX_DAYS = 14
 
 export type DeadlineColor = 'red' | 'yellow' | 'green'
 
+// bg・text は期限の表示(ステータスと同じくらいの薄い背景に、同じ系統の濃い文字)。
+// dot は絞り込みの選択肢に付ける小さな丸(小さいので、見分けやすい濃い色にする)
 export const DEADLINE_COLOR_STYLE: Record<
   DeadlineColor,
-  { label: string; description: string; bg: string; text: string }
+  { label: string; description: string; bg: string; text: string; dot: string }
 > = {
   red: {
     label: '赤',
     description: `${DEADLINE_RED_MAX_DAYS}日以内`,
-    bg: '#dc2626',
-    text: '#ffffff',
+    bg: '#fee2e2',
+    text: '#b91c1c',
+    dot: '#dc2626',
   },
   yellow: {
     label: '黄色',
     description: `${DEADLINE_RED_MAX_DAYS + 1}〜${DEADLINE_YELLOW_MAX_DAYS}日`,
-    bg: '#facc15',
-    text: '#422006',
+    bg: '#fef9c3',
+    text: '#854d0e',
+    dot: '#facc15',
   },
   green: {
-    label: '黄緑',
+    label: '緑',
     description: `${DEADLINE_YELLOW_MAX_DAYS + 1}日以上`,
-    bg: '#a3e635',
-    text: '#1a2e05',
+    bg: '#dcfce7',
+    text: '#15803d',
+    dot: '#22c55e',
   },
 }
 

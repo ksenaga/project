@@ -165,7 +165,7 @@ const TaskFilterBar = ({ filter, onChange, members, screens, resultCount }: Prop
                     height: 12,
                     flexShrink: 0,
                     borderRadius: '50%',
-                    bgcolor: style.bg,
+                    bgcolor: style.dot,
                   }}
                   aria-hidden
                 />

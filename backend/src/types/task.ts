@@ -35,7 +35,7 @@ export const MEMBER_SETTABLE_STATUSES: readonly TaskStatus[] = [
 export const CLOSED_STATUSES: readonly TaskStatus[] = [TASK_STATUS.DONE, TASK_STATUS.CANCELED]
 
 // 期限の色。今日から期限までの日数で決める
-//   red: 7日以内(期限切れを含む) / yellow: 8〜14日 / green(黄緑): 15日以上
+//   red: 7日以内(期限切れを含む) / yellow: 8〜14日 / green(緑): 15日以上
 export const DEADLINE_COLORS = ['red', 'yellow', 'green'] as const
 export type DeadlineColor = (typeof DEADLINE_COLORS)[number]
 export const DEADLINE_RED_MAX_DAYS = 7
