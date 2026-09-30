@@ -1,0 +1,8 @@
+# コンテナのビルドに使わないもの(node_modules はコンテナの中で入れ直す)
+**/node_modules
+**/dist
+**/.env
+**/.DS_Store
+.git
+docker
+plan
