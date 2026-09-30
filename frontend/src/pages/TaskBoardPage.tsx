@@ -627,6 +627,7 @@ const TaskBoardPage = () => {
         project && (
           <TaskFormDialog
             user={user}
+            projectId={projectId}
             members={project.members}
             screens={screens}
             lists={lists}

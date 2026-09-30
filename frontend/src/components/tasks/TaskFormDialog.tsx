@@ -21,6 +21,7 @@ import { ApiError } from '../../api/client'
 import {
   TASK_UPDATED_BY_OTHERS,
   type Task,
+  type TaskImage,
   type TaskInput,
   type TaskUpdateInput,
 } from '../../api/tasks'
@@ -30,12 +31,15 @@ import type { LoginUser } from '../../pages/LoginPage'
 import { isLimitedEditor, settableStatuses } from '../../utils/taskPermission'
 import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
+import TaskImageEditor from './TaskImageEditor'
 
 const TITLE_MAX_LENGTH = 50
 const VARCHAR_MAX_LENGTH = 255
 
 type Props = {
   user: LoginUser
+  // 修正内容の画像を送る先のプロジェクト
+  projectId: number
   // 担当者の候補(プロジェクトメンバー)
   members: Member[]
   // 画面名の候補(プロジェクトに登録されている画面名)
@@ -60,6 +64,7 @@ const toNullable = (value: string) => (value.trim() === '' ? null : value.trim()
 
 const TaskFormDialog = ({
   user,
+  projectId,
   members,
   screens,
   lists,
@@ -101,6 +106,9 @@ const TaskFormDialog = ({
   // 画面名は必須。'' は未選択(以前の画面名なしのタスクを編集・コピーしたときも未選択になる)
   const [screenId, setScreenId] = useState<number | ''>(source?.screen?.id ?? '')
   const [modified, setModified] = useState(task?.modified ?? '')
+  // 修正内容の画像(コピーでは引き継がない)。送っている途中は保存できない
+  const [modifiedImages, setModifiedImages] = useState<TaskImage[]>(task?.modified_images ?? [])
+  const [uploadingImages, setUploadingImages] = useState(0)
   const [reason, setReason] = useState(task?.reason ?? '')
   const [git, setGit] = useState(task?.git ?? '')
   const [memo, setMemo] = useState(task?.memo ?? '')
@@ -155,6 +163,10 @@ const TaskFormDialog = ({
       // 追加したリストは list_id、既存の5つは status で送る
       ...(listId !== null ? { list_id: listId } : { status }),
       modified: toNullable(modified),
+      // 画像の一覧を読み込めていないタスク(詳細以外から開いた場合)では送らない(画像を消してしまわないように)
+      ...((!isEdit || task.modified_images !== undefined) && {
+        modified_image_ids: modifiedImages.map((image) => image.id),
+      }),
       reason: toNullable(reason),
       git: toNullable(git),
       memo: toNullable(memo),
@@ -421,14 +433,24 @@ const TaskFormDialog = ({
             <Box
               sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}
             >
-              <TextField
-                label="修正内容"
-                multiline
-                minRows={3}
-                value={modified}
-                onChange={(e) => setModified(e.target.value)}
+              {/* 修正内容には、原因となる画面のスクリーンショットなどを貼り付けられる */}
+              <TaskImageEditor
+                projectId={projectId}
+                images={modifiedImages}
+                onChange={setModifiedImages}
+                onUploadingChange={setUploadingImages}
                 disabled={saving}
-              />
+              >
+                <TextField
+                  label="修正内容"
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  value={modified}
+                  onChange={(e) => setModified(e.target.value)}
+                  disabled={saving}
+                />
+              </TaskImageEditor>
               <TextField
                 label="修正理由"
                 multiline
@@ -463,7 +485,13 @@ const TaskFormDialog = ({
           <Button onClick={onClose} disabled={saving} color="inherit">
             キャンセル
           </Button>
-          <Button type="submit" variant="contained" loading={saving} disabled={conflicted}>
+          <Button
+            type="submit"
+            variant="contained"
+            loading={saving}
+            // 画像を送っている途中は、送り終わるまで保存できない
+            disabled={conflicted || uploadingImages > 0}
+          >
             {isEdit ? '保存' : '作成'}
           </Button>
         </DialogActions>

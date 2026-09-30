@@ -1,9 +1,10 @@
-import { db } from '../db/knex'
+import { db, type Conn } from '../db/knex'
 import { badRequest, conflict, forbidden, notFound } from '../errors/HttpError'
 import * as projectMemberRepository from '../repositories/projectMemberRepository'
 import * as boardListRepository from '../repositories/boardListRepository'
 import * as commentRepository from '../repositories/commentRepository'
 import * as tagRepository from '../repositories/tagRepository'
+import * as taskImageRepository from '../repositories/taskImageRepository'
 import * as taskRepository from '../repositories/taskRepository'
 import {
   CLOSED_STATUSES,
@@ -44,11 +45,31 @@ const ensureTagsExist = async (tagIds: number[] | undefined) => {
 }
 
 // 担当者(user_ids)・タグ(tag_ids)と、tasks テーブルに書き込む値に分ける
-const splitInput = <T extends Partial<TaskInput>>({ user_ids, tag_ids, ...fields }: T) => ({
+const splitInput = <T extends Partial<TaskInput>>({
+  user_ids,
+  tag_ids,
+  modified_image_ids,
+  ...fields
+}: T) => ({
   userIds: user_ids,
   tagIds: tag_ids,
+  imageIds: modified_image_ids,
   fields: fields as Partial<TaskFields>,
 })
+
+// 修正内容の画像をタスクに付ける(貼った画像が見つからないときはエラー)
+const replaceImages = async (
+  projectId: number,
+  taskId: number,
+  imageIds: number[] | undefined,
+  user: AuthUser,
+  trx: Conn,
+) => {
+  if (imageIds === undefined) return
+  if (!(await taskImageRepository.replaceForTask(projectId, taskId, imageIds, user.id, trx))) {
+    throw badRequest('貼った画像が見つかりません。もう一度貼り付けてください')
+  }
+}
 
 const getTask = async (projectId: number, id: number): Promise<Task> => {
   const task = await taskRepository.findById(projectId, id)
@@ -92,6 +113,13 @@ const describeChanges = (before: Task, after: Task): string[] => {
   for (const [key, label] of texts) {
     if ((before[key] ?? null) !== (after[key] ?? null)) changes.push(`${label}を変更`)
   }
+  // 修正内容の画像(追加・削除した枚数)
+  const beforeIds = (before.modified_images ?? []).map((image) => image.id)
+  const afterIds = (after.modified_images ?? []).map((image) => image.id)
+  const added = afterIds.filter((imageId) => !beforeIds.includes(imageId)).length
+  const removed = beforeIds.filter((imageId) => !afterIds.includes(imageId)).length
+  if (added > 0) changes.push(`修正内容の画像を追加（${added}枚）`)
+  if (removed > 0) changes.push(`修正内容の画像を削除（${removed}枚）`)
   return changes
 }
 
@@ -154,11 +182,12 @@ export const create = async (
   await ensureScreenInProject(projectId, input.screen_id)
   await ensureTagsExist(input.tag_ids)
 
-  const { fields } = splitInput(input)
+  const { fields, imageIds } = splitInput(input)
   const id = await db.transaction(async (trx) => {
     const taskId = await taskRepository.create(projectId, fields as TaskFields, user.id, trx)
     await taskRepository.replaceAssignees(taskId, input.user_ids, trx)
     await taskRepository.replaceTags(taskId, input.tag_ids, trx)
+    await replaceImages(projectId, taskId, imageIds, user, trx)
     return taskId
   })
   const created = await getTask(projectId, id)
@@ -234,7 +263,7 @@ export const update = async (
 
   await ensureTagsExist(input.tag_ids)
 
-  const { userIds, tagIds, fields } = splitInput(input)
+  const { userIds, tagIds, imageIds, fields } = splitInput(input)
   await db.transaction(async (trx) => {
     // 確認と保存の間にほかの人が更新した場合も、ここで弾く
     const count = await taskRepository.update(
@@ -253,6 +282,7 @@ export const update = async (
     }
     if (userIds !== undefined) await taskRepository.replaceAssignees(id, userIds, trx)
     if (tagIds !== undefined) await taskRepository.replaceTags(id, tagIds, trx)
+    await replaceImages(projectId, id, imageIds, user, trx)
   })
   const updated = await getTask(projectId, id)
 

@@ -24,6 +24,8 @@ export type Task = TaskSummary & {
   updated_at: string | null
   detail: string
   modified: string | null
+  // 修正内容に貼った画像(並び順)。タスク詳細でだけ返る
+  modified_images?: TaskImage[]
   reason: string | null
   git: string | null
   memo: string | null
@@ -40,10 +42,25 @@ export type TaskInput = {
   // 追加したリストへ移動するときに指定する(status と同時には指定できない)。status を指定すると外れる
   list_id: number | null
   modified: string | null
+  // 修正内容に貼った画像の ID(この順に並べる)。省略すると変えない
+  modified_image_ids?: number[]
   reason: string | null
   git: string | null
   memo: string | null
 }
+
+// 修正内容に貼った画像
+export type TaskImage = {
+  id: number
+  url: string
+}
+
+// 修正内容に貼れる画像の数
+export const TASK_IMAGE_MAX_COUNT = 10
+
+// 修正内容に貼った画像を保存する(タスクを保存したときにタスクに付く)
+export const uploadTaskImage = (projectId: number, image: Blob) =>
+  request<TaskImage>(`/projects/${projectId}/task-images`, { method: 'POST', body: image })
 
 const base = (projectId: number) => `/projects/${projectId}/tasks`
 

@@ -14,6 +14,7 @@ import {
 import type { Member } from '../types/project'
 import type { TagRef } from '../types/tag'
 import * as commentRepository from './commentRepository'
+import * as taskImageRepository from './taskImageRepository'
 import { toMember } from './userRepository'
 
 const summaryColumns = [
@@ -166,7 +167,7 @@ export const findById = async (projectId: number, id: number): Promise<Task | un
     .first()
   if (!row) return undefined
   const [task] = await toTasks([row])
-  return task
+  return { ...task, modified_images: await taskImageRepository.findByTask(projectId, id) }
 }
 
 // 期限の日付から、今の期限の色(DEADLINE_ALERT_LEVEL)を求める SQL。date は期限の列か「?」

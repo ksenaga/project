@@ -30,6 +30,10 @@ API設計
 コメント投稿	POST	/api/projects/{project_id}/tasks/{task_id}/comments
 コメント削除	DELETE	/api/projects/{project_id}/tasks/{task_id}/comments/{id}
 メンションできるユーザー	GET	/api/projects/{project_id}/tasks/{task_id}/comments/mentionable-users
+【修正内容の画像】
+機能	HTTPメソッド	URL
+画像を貼る	POST	/api/projects/{project_id}/task-images
+画像の取得	GET	/api/projects/{project_id}/task-images/{id}
 【画面名】
 機能	HTTPメソッド	URL
 画面名一覧取得	GET	/api/projects/{project_id}/screens
@@ -423,6 +427,8 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 タスク詳細 GET /api/projects/{project_id}/tasks/{id}
 タスク編集 PATCH /api/projects/{project_id}/tasks/{id}
 ※3つとも同じ形。未入力の任意項目は null
+※タスク作成・編集では "modified_image_ids" に、修正内容に貼った画像の ID を並べたい順に送る(任意。10枚まで。省略すると変えない)。
+　送った一覧にない画像はタスクから外して削除する。付けられるのは、今そのタスクに付いている画像と、同じプロジェクトで本人が貼ったまだ付いていない画像
 ※タスク編集では "expected_updated_at" に、編集を始めたときの updated_at を送れる(任意)。
 　その後ほかの人が先に更新していたら保存せず、409 と "code":"TASK_UPDATED_BY_OTHERS" を返す(ボードでの移動では送らない)
 {
@@ -433,6 +439,9 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 	"deadline":"2027-01-01",
 	"detail":"タスクの説明",
 	"modified":null,
+	"modified_images":[	※修正内容に貼った画像(並び順)。タスク作成・詳細・編集で返す
+		{"id":3,"url":"/api/projects/1/task-images/3"}
+	],
 	"reason":null,
 	"git":null,
 	"memo":null,
@@ -588,6 +597,22 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ユーザー削除 DELETE /api/users/{id}
 (なし)
 
+【修正内容の画像】
+※原因となる画面のスクリーンショットなど。貼る・見るのはプロジェクトのメンバー(管理者は全プロジェクト)
+画像を貼る POST /api/projects/{project_id}/task-images
+※本文は画像のデータそのもの(Content-Type: image/png / image/jpeg / image/webp)。5MB まで。
+　画面では、長い辺を 2000px までに縮めた WebP にしてから送る
+※貼った時点ではタスクに付かない。タスクの作成・編集で modified_image_ids に入れて保存したときに付く。
+　付かないまま24時間たった画像は削除する(サーバーの起動時と1時間ごと)
+Response(201)
+{
+	"id":3,
+	"url":"/api/projects/1/task-images/3"
+}
+画像の取得 GET /api/projects/{project_id}/task-images/{id}
+※画像のデータをそのまま返す。画像は変わらないので長くキャッシュさせる(Cache-Control: private, max-age=31536000, immutable)
+※まだタスクに付いていない画像は、貼った本人しか見られない
+
 【アイコン画像】
 アイコン画像の取得 GET /api/users/{id}/avatar
 ※ログインしていれば誰でも見られる。画像のデータをそのまま返す(Content-Type は設定した形式)。
@@ -624,7 +649,9 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"自分の権限は変更できません"
 ・"自分自身は削除できません"
 ・"自分をプロジェクトメンバーから外すことはできません"(リーダーのプロジェクト編集)
-・"画像は PNG・JPEG・WebP のいずれかにしてください"(アイコン画像の設定。形式が違う・中身が画像でない)
+・"画像は PNG・JPEG・WebP のいずれかにしてください"(アイコン画像の設定・修正内容の画像を貼る。形式が違う・中身が画像でない)
+・"修正内容の画像は10枚までです"(タスク作成・編集)
+・"貼った画像が見つかりません。もう一度貼り付けてください"(タスク作成・編集。付けられない画像の ID が含まれている)
 401 認証されていない
 ・"ログインしてください"
 ・"ユーザー名またはパスワードが正しくありません"(ログイン)
@@ -648,7 +675,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"タスクで使われている画面名は削除できません"(画面名削除)
 ・"未完了のタスクを担当しているため削除できません"(ユーザー削除)
 413 大きすぎる
-・"データが大きすぎます"(アイコン画像が1MBを超える)
+・"データが大きすぎます"(アイコン画像が1MB、修正内容の画像が5MBを超える)
 423 ロック中
 ・"ログインに5回続けて失敗したため、ロックしています。約15分後にもう一度お試しください"(ログイン。code: ACCOUNT_LOCKED。分はロックが解けるまでの残り)
 500 サーバーエラー
@@ -706,6 +733,12 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 コメント投稿 POST /api/projects/{project_id}/tasks/{task_id}/comments
 成功 201
 失敗 400 or 401 or 403 or 404
+画像を貼る POST /api/projects/{project_id}/task-images
+成功 201
+失敗 400(形式) or 401 or 403(管理者以外でプロジェクトメンバーでない) or 404 or 413(5MB を超える)
+画像の取得 GET /api/projects/{project_id}/task-images/{id}
+成功 200
+失敗 400 or 401 or 403 or 404(画像がない・まだタスクに付いていない他人の画像)
 メンションできるユーザー GET /api/projects/{project_id}/tasks/{task_id}/comments/mentionable-users
 成功 200
 失敗 401 or 403 or 404

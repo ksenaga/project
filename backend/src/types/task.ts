@@ -56,6 +56,7 @@ export const MEMBER_EDITABLE_FIELDS = [
   'status',
   'list_id',
   'modified',
+  'modified_image_ids',
   'reason',
   'git',
   'memo',
@@ -87,6 +88,8 @@ export type Task = TaskSummary & {
   updated_at: string | null
   detail: string
   modified: string | null
+  // 修正内容に貼った画像(並び順)。タスク詳細でだけ返す
+  modified_images?: TaskImage[]
   reason: string | null
   git: string | null
   memo: string | null
@@ -104,14 +107,26 @@ export type TaskInput = {
   // 追加したリストへ移動するときに指定する(status と同時には指定できない)。status を指定すると null になる
   list_id: number | null
   modified: string | null
+  // 修正内容に貼った画像(この順に並べる)。貼ったときに返る ID を送る。省略すると変えない
+  modified_image_ids?: number[]
   reason: string | null
   git: string | null
   memo: string | null
 }
 
-// tasks テーブルに書き込む値(担当者は task_assignees に書き込む)
-// (担当者は task_assignees、タグは task_tags に書き込む)
-export type TaskFields = Omit<TaskInput, 'user_ids' | 'tag_ids'>
+// タスクの修正内容に貼った画像
+export type TaskImage = {
+  id: number
+  url: string
+}
+
+// 修正内容に貼れる画像の数と、1枚の大きさの上限(画面で縮めてから送る)
+export const TASK_IMAGE_MAX_COUNT = 10
+export const TASK_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+
+// tasks テーブルに書き込む値
+// (担当者は task_assignees、タグは task_tags、画像は task_images に書き込む)
+export type TaskFields = Omit<TaskInput, 'user_ids' | 'tag_ids' | 'modified_image_ids'>
 
 // 一覧の絞り込み条件(指定したものすべてに当てはまるタスクを返す)
 export type TaskFilter = {

@@ -37,6 +37,7 @@ import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
 import CancelRequestDialog from './CancelRequestDialog'
 import TaskComments from './TaskComments'
+import TaskImageGallery from './TaskImageGallery'
 
 type Props = {
   user: LoginUser
@@ -284,7 +285,11 @@ const TaskDetailDialog = ({
                 <Text value={task.detail} linkify />
               </Field>
               <Field label="修正内容">
-                <Text value={task.modified} linkify />
+                {/* 画像だけ貼って文字がないときは「未入力」を出さない */}
+                {(task.modified || (task.modified_images ?? []).length === 0) && (
+                  <Text value={task.modified} linkify />
+                )}
+                <TaskImageGallery images={task.modified_images ?? []} />
               </Field>
               <Field label="修正理由">
                 <Text value={task.reason} linkify />

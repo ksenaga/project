@@ -5,6 +5,7 @@ import { authorize } from '../middlewares/authorize'
 import { ROLE } from '../types/user'
 import boardListRoutes from './boardListRoutes'
 import screenRoutes from './screenRoutes'
+import taskImageRoutes from './taskImageRoutes'
 import taskRoutes from './taskRoutes'
 
 const router = Router()
@@ -23,5 +24,6 @@ router.delete('/:id', authorize(ROLE.ADMIN), projectController.remove)
 router.use('/:projectId/tasks', taskRoutes)
 router.use('/:projectId/screens', screenRoutes)
 router.use('/:projectId/lists', boardListRoutes)
+router.use('/:projectId/task-images', taskImageRoutes)
 
 export default router

@@ -3,6 +3,7 @@ import { badRequest } from '../errors/HttpError'
 import * as taskService from '../services/taskService'
 import {
   DEADLINE_COLORS,
+  TASK_IMAGE_MAX_COUNT,
   TASK_STATUS,
   TASK_STATUSES,
   type TaskFilter,
@@ -55,6 +56,14 @@ const parseTaskInput = (body: unknown, { partial }: { partial: boolean }) => {
 
   // 任意項目
   if (has('modified')) input.modified = parseOptionalString(b.modified)
+  // 修正内容に貼った画像(上限の枚数まで。同じ画像は1つにまとめる)
+  if (has('modified_image_ids')) {
+    const ids = parseIdArray(b.modified_image_ids)
+    if (ids.length > TASK_IMAGE_MAX_COUNT) {
+      throw badRequest(`修正内容の画像は${TASK_IMAGE_MAX_COUNT}枚までです`)
+    }
+    input.modified_image_ids = ids
+  }
   if (has('reason')) input.reason = parseOptionalString(b.reason)
   if (has('git')) input.git = parseOptionalString(b.git, VARCHAR_MAX_LENGTH)
   if (has('memo')) input.memo = parseOptionalString(b.memo)

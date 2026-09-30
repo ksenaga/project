@@ -1,13 +1,8 @@
 import type { Request, Response } from 'express'
 import { badRequest } from '../errors/HttpError'
 import * as userService from '../services/userService'
-import {
-  AVATAR_CONTENT_TYPES,
-  ROLES,
-  type AvatarContentType,
-  type Role,
-  type UserInput,
-} from '../types/user'
+import { ROLES, type Role, type UserInput } from '../types/user'
+import { parseImageBody } from '../validators/image'
 import { parseBody, parseId, parseRequiredString } from '../validators/common'
 
 const NAME_MAX_LENGTH = 50
@@ -73,16 +68,6 @@ export const unlock = async (req: Request, res: Response) => {
   res.json(await userService.unlock(parseId(req.params.id), req.user!))
 }
 
-// 画像の先頭のバイト列(ファイルの形式を表す)。Content-Type と中身が合っているかを確かめる
-const MAGIC_BYTES: Record<AvatarContentType, (data: Buffer) => boolean> = {
-  'image/png': (data) =>
-    data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
-  'image/jpeg': (data) => data.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])),
-  'image/webp': (data) =>
-    data.subarray(0, 4).toString('latin1') === 'RIFF' &&
-    data.subarray(8, 12).toString('latin1') === 'WEBP',
-}
-
 // GET /api/users/:id/avatar
 // URL に設定した日時(?v=)が付いているので、同じ URL の画像は変わらない。長くキャッシュしてよい
 export const getAvatar = async (req: Request, res: Response) => {
@@ -97,17 +82,8 @@ export const getAvatar = async (req: Request, res: Response) => {
 // PUT /api/users/:id/avatar(本文は画像のデータそのもの。Content-Type で形式を指定する)
 export const saveAvatar = async (req: Request, res: Response) => {
   const id = parseId(req.params.id)
-  const contentType = req.get('Content-Type')?.split(';')[0].trim().toLowerCase()
-  const data: unknown = req.body
-  if (
-    !AVATAR_CONTENT_TYPES.includes(contentType as AvatarContentType) ||
-    !Buffer.isBuffer(data) ||
-    data.length === 0 ||
-    !MAGIC_BYTES[contentType as AvatarContentType](data)
-  ) {
-    throw badRequest('画像は PNG・JPEG・WebP のいずれかにしてください')
-  }
-  res.json(await userService.saveAvatar(id, contentType as AvatarContentType, data, req.user!))
+  const { contentType, data } = parseImageBody(req.get('Content-Type'), req.body)
+  res.json(await userService.saveAvatar(id, contentType, data, req.user!))
 }
 
 // DELETE /api/users/:id/avatar
