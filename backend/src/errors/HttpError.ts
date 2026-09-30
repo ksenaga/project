@@ -19,3 +19,6 @@ export const forbidden = (message = '操作権限がありません') => new Htt
 export const notFound = (message = '画面が存在しません') => new HttpError(404, message)
 
 export const conflict = (message: string, code?: string) => new HttpError(409, message, code)
+
+// ログインに続けて失敗して、ロックされている
+export const locked = (message: string) => new HttpError(423, message, 'ACCOUNT_LOCKED')

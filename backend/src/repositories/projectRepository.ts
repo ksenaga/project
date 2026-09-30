@@ -1,6 +1,7 @@
 import { db, type Conn } from '../db/knex'
 import type { Member, ProjectBase, ProjectInput, ProjectPhase } from '../types/project'
 import { TASK_STATUS, TASK_STATUSES } from '../types/task'
+import { toMember } from './userRepository'
 
 // 進捗度の分母に入れるステータス(対応中止は含まない)
 const PROGRESS_STATUSES = TASK_STATUSES.filter((s) => s !== TASK_STATUS.CANCELED)
@@ -61,12 +62,15 @@ export const updatePhase = async (
     .whereNull('deleted_at')
     .update({ phase, updater: userId, updated_at: db.fn.now(3) })
 
-export const findCreaterById = async (id: number): Promise<Member | undefined> =>
-  activeProjects()
-    .join('users as u', 'u.id', 'p.creater')
-    .select('u.id', 'u.name')
-    .where('p.id', id)
-    .first()
+export const findCreaterById = async (id: number): Promise<Member | undefined> => {
+  const row: { id: number; name: string; avatar_updated_at: Date | null } | undefined =
+    await activeProjects()
+      .join('users as u', 'u.id', 'p.creater')
+      .select('u.id', 'u.name', 'u.avatar_updated_at')
+      .where('p.id', id)
+      .first()
+  return row && toMember(row)
+}
 
 export const create = async (
   input: ProjectInput,

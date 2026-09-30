@@ -26,7 +26,7 @@ const withMembers = async (projects: ProjectBase[]): Promise<Project[]> => {
     ...project,
     members: rows
       .filter((row) => row.project_id === project.id)
-      .map(({ id, name }) => ({ id, name })),
+      .map(({ project_id: _projectId, ...member }) => member),
   }))
 }
 

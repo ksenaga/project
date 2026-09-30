@@ -12,6 +12,7 @@ import {
 import type { Member } from '../types/project'
 import type { TagRef } from '../types/tag'
 import * as commentRepository from './commentRepository'
+import { toMember } from './userRepository'
 
 const summaryColumns = [
   't.id',
@@ -42,13 +43,14 @@ type Row = Omit<TaskSummary, 'assignees' | 'screen'> & {
 const findAssigneesByTaskIds = async (taskIds: number[]): Promise<Map<number, Member[]>> => {
   const map = new Map<number, Member[]>()
   if (taskIds.length === 0) return map
-  const rows: (Member & { task_id: number })[] = await db('task_assignees as ta')
-    .join('users as u', 'u.id', 'ta.user_id')
-    .select('ta.task_id', 'u.id', 'u.name')
-    .whereIn('ta.task_id', taskIds)
-    .orderBy('u.id')
-  for (const { task_id, id, name } of rows) {
-    map.set(task_id, [...(map.get(task_id) ?? []), { id, name }])
+  const rows: { task_id: number; id: number; name: string; avatar_updated_at: Date | null }[] =
+    await db('task_assignees as ta')
+      .join('users as u', 'u.id', 'ta.user_id')
+      .select('ta.task_id', 'u.id', 'u.name', 'u.avatar_updated_at')
+      .whereIn('ta.task_id', taskIds)
+      .orderBy('u.id')
+  for (const { task_id, ...user } of rows) {
+    map.set(task_id, [...(map.get(task_id) ?? []), toMember(user)])
   }
   return map
 }

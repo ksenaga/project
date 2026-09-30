@@ -2,7 +2,13 @@ import { request } from './client'
 
 export type Notification = {
   id: number
-  type: 'project_member' | 'task_assignee' | 'task_review' | 'task_cancel_request' | 'task_comment'
+  type:
+    | 'project_member'
+    | 'task_assignee'
+    | 'task_review'
+    | 'task_cancel_request'
+    | 'task_comment'
+    | 'task_mention' // コメントでメンションされた
   project_id: number
   task_id: number | null // プロジェクトの通知は null
   message: string

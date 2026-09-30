@@ -21,9 +21,11 @@ type Props = {
   sx?: SxProps<Theme>
 }
 
+// アイコン画像があれば画像、なければ名前の頭文字を表示する(画像が読めなかったときも頭文字)
 const UserAvatar = ({ user, size = 28, sx }: Props) => (
   <Avatar
     alt={user.name}
+    src={user.avatar_url ?? undefined}
     sx={[
       { width: size, height: size, fontSize: size * 0.45, bgcolor: avatarColor(user.id) },
       ...(Array.isArray(sx) ? sx : [sx]),

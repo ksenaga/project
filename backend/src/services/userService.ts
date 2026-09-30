@@ -8,6 +8,7 @@ import { INCOMPLETE_STATUSES } from '../types/task'
 import {
   ROLE,
   type AuthUser,
+  type AvatarContentType,
   type UserDetail,
   type UserInput,
   type UserSummary,
@@ -22,14 +23,22 @@ const duplicateName = () => conflict('このユーザー名は既に使われて
 const isDuplicateEntry = (err: unknown) =>
   typeof err === 'object' && err !== null && 'code' in err && err.code === 'ER_DUP_ENTRY'
 
-const getSummary = async (id: number): Promise<UserSummary> => {
+// ロックされているかは管理者にだけ返す(ロックを解除できるのは管理者だけなので)
+const forViewer = (summary: UserSummary, viewer: AuthUser): UserSummary => {
+  if (viewer.role === ROLE.ADMIN) return summary
+  const { locked: _locked, ...rest } = summary
+  return rest
+}
+
+const getSummary = async (id: number, viewer: AuthUser): Promise<UserSummary> => {
   const user = await userRepository.findActiveWithProjectCountById(id)
   if (!user) throw userNotFound()
-  return user
+  return forViewer(user, viewer)
 }
 
 // 一覧・詳細は全ロールが全ユーザーを見られる
-export const list = async (): Promise<UserSummary[]> => userRepository.findAllActive()
+export const list = async (user: AuthUser): Promise<UserSummary[]> =>
+  (await userRepository.findAllActive()).map((summary) => forViewer(summary, user))
 
 export const get = async (id: number): Promise<UserDetail> => {
   const target = await userRepository.findActiveById(id)
@@ -43,7 +52,7 @@ export const create = async (input: UserInput, user: AuthUser): Promise<UserSumm
   const password = await bcrypt.hash(input.password, SALT_ROUNDS)
   try {
     const id = await userRepository.create({ ...input, password }, user.id)
-    return getSummary(id)
+    return getSummary(id, user)
   } catch (err) {
     if (isDuplicateEntry(err)) throw duplicateName()
     throw err
@@ -81,7 +90,48 @@ export const update = async (
     if (isDuplicateEntry(err)) throw duplicateName()
     throw err
   }
-  return getSummary(id)
+  // 管理者がパスワードを設定し直したら、ロックも解除する(忘れてロックされた人を助けるため)
+  if (password !== undefined && user.role === ROLE.ADMIN) {
+    await userRepository.clearLoginFailures(id)
+  }
+  return getSummary(id, user)
+}
+
+// ロックの解除は管理者のみ(ルートで制限)
+export const unlock = async (id: number, user: AuthUser): Promise<UserSummary> => {
+  if (!(await userRepository.findActiveById(id))) throw userNotFound()
+  await userRepository.clearLoginFailures(id)
+  return getSummary(id, user)
+}
+
+// アイコン画像はログインしていれば誰でも見られる
+export const getAvatar = async (id: number) => {
+  const avatar = await userRepository.findAvatar(id)
+  if (!avatar) throw notFound('アイコン画像が設定されていません')
+  return avatar
+}
+
+// アイコン画像の設定・削除は、管理者は全員、それ以外は自分だけ
+const ensureCanEditAvatar = async (id: number, user: AuthUser) => {
+  if (user.role !== ROLE.ADMIN && id !== user.id) throw forbidden()
+  if (!(await userRepository.findActiveById(id))) throw userNotFound()
+}
+
+export const saveAvatar = async (
+  id: number,
+  contentType: AvatarContentType,
+  data: Buffer,
+  user: AuthUser,
+): Promise<UserSummary> => {
+  await ensureCanEditAvatar(id, user)
+  await userRepository.saveAvatar(id, contentType, data, user.id)
+  return getSummary(id, user)
+}
+
+export const removeAvatar = async (id: number, user: AuthUser): Promise<UserSummary> => {
+  await ensureCanEditAvatar(id, user)
+  await userRepository.removeAvatar(id, user.id)
+  return getSummary(id, user)
 }
 
 // 削除は管理者のみ(ルートで制限)。プロジェクトからも外す

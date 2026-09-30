@@ -1,15 +1,23 @@
 import { db, type Conn } from '../db/knex'
 import { COMMENT_TYPE, type Comment, type CommentType } from '../types/comment'
+import { toMember } from './userRepository'
 
 type Row = Omit<Comment, 'user' | 'created_at'> & {
   user_id: number
   user_name: string
+  user_avatar_updated_at: Date | null
   created_at: Date
 }
 
-const toComment = ({ user_id, user_name, created_at, ...rest }: Row): Comment => ({
+const toComment = ({
+  user_id,
+  user_name,
+  user_avatar_updated_at,
+  created_at,
+  ...rest
+}: Row): Comment => ({
   ...rest,
-  user: { id: user_id, name: user_name },
+  user: toMember({ id: user_id, name: user_name, avatar_updated_at: user_avatar_updated_at }),
   created_at: new Date(created_at).toISOString(),
 })
 
@@ -20,6 +28,7 @@ const columns = [
   'c.created_at',
   'u.id as user_id',
   'u.name as user_name',
+  'u.avatar_updated_at as user_avatar_updated_at',
 ]
 
 // 古い順(削除されたユーザーのコメントも、書いたときの名前で残す)

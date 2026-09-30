@@ -14,6 +14,8 @@ export type ProjectRow = {
 export type Member = {
   id: number
   name: string
+  // アイコン画像の URL(画像がなければ null)。画像を変えると URL も変わる
+  avatar_url: string | null
 }
 
 // プロジェクトのフェーズ(プルダウンの並び順)

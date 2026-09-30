@@ -17,12 +17,16 @@ import AddIcon from '@mui/icons-material/Add'
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import { ApiError } from '../api/client'
 import {
   createUser,
+  deleteAvatar,
   deleteUser,
   fetchUsers,
+  unlockUser,
   updateUser,
+  uploadAvatar,
   type User,
   type UserInput,
   type UserSummary,
@@ -31,13 +35,13 @@ import { useAuth } from '../auth/AuthContext'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import UserAvatar from '../components/UserAvatar'
 import UserDetailDialog from '../components/UserDetailDialog'
-import UserFormDialog from '../components/UserFormDialog'
+import UserFormDialog, { type AvatarChange } from '../components/UserFormDialog'
 import { ROLE, ROLE_LABEL } from '../constants/role'
 
 type DialogState =
   | { type: 'detail'; userId: number }
   | { type: 'create' }
-  | { type: 'edit'; target: User }
+  | { type: 'edit'; target: Omit<UserSummary, 'project_count'> }
   | { type: 'delete'; target: User }
   | null
 
@@ -84,17 +88,35 @@ const UserPage = () => {
     }
   }, [reloadKey, handleAuthError])
 
-  const handleSubmit = async (input: UserInput) => {
+  // アイコン画像の変更を反映する(ユーザーの保存のあとに行う)
+  const saveAvatar = async (id: number, avatar: AvatarChange, saved: UserSummary) =>
+    avatar.type === 'set'
+      ? uploadAvatar(id, avatar.image)
+      : avatar.type === 'remove'
+        ? deleteAvatar(id)
+        : saved
+
+  const handleSubmit = async (input: UserInput, avatar: AvatarChange) => {
     try {
       if (dialog?.type === 'edit') {
-        const updated = await updateUser(dialog.target.id, input)
-        // 自分の名前を変えたらヘッダーの表示も更新する
+        const updated = await saveAvatar(
+          dialog.target.id,
+          avatar,
+          await updateUser(dialog.target.id, input),
+        )
+        // 自分の名前・アイコンを変えたらヘッダーの表示も更新する
         if (updated.id === user?.id) {
-          setUser({ id: updated.id, name: updated.name, role: updated.role })
+          setUser({
+            id: updated.id,
+            name: updated.name,
+            role: updated.role,
+            avatar_url: updated.avatar_url,
+          })
         }
         setNotice('ユーザーを更新しました')
       } else {
-        await createUser(input)
+        const created = await createUser(input)
+        await saveAvatar(created.id, avatar, created)
         setNotice('ユーザーを登録しました')
       }
     } catch (err) {
@@ -207,7 +229,6 @@ const UserPage = () => {
                         sx={{
                           all: 'inherit',
                           cursor: 'pointer',
-                          '&:hover': { textDecoration: 'underline' },
                           '&:focus-visible': { outline: 2, outlineColor: 'primary.main' },
                         }}
                       >
@@ -215,6 +236,16 @@ const UserPage = () => {
                       </Box>
                     </Typography>
                     {target.id === user?.id && <Chip label="あなた" size="small" color="primary" />}
+                    {/* ロックされているかは管理者にだけ返る */}
+                    {target.locked && (
+                      <Chip
+                        icon={<LockOutlinedIcon />}
+                        label="ロック中"
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                      />
+                    )}
                   </Stack>
                   <Stack
                     direction="row"
@@ -264,7 +295,13 @@ const UserPage = () => {
           canEdit={isAdmin || dialog.userId === user?.id}
           canOpenProjects={isAdmin || dialog.userId === user?.id}
           onClose={() => setDialog(null)}
-          onEdit={(target) => setDialog({ type: 'edit', target })}
+          // 一覧の値にはロックの状態も入っているので、一覧にあればそちらで編集する
+          onEdit={(target) =>
+            setDialog({
+              type: 'edit',
+              target: users?.find((u) => u.id === target.id) ?? target,
+            })
+          }
         />
       )}
       {(dialog?.type === 'create' || dialog?.type === 'edit') && (
@@ -273,6 +310,14 @@ const UserPage = () => {
           canChangeRole={isAdmin && (dialog.type === 'create' || dialog.target.id !== user?.id)}
           onClose={() => setDialog(null)}
           onSubmit={handleSubmit}
+          onUnlock={
+            isAdmin && dialog.type === 'edit'
+              ? async () => {
+                  await unlockUser(dialog.target.id)
+                  reload()
+                }
+              : undefined
+          }
         />
       )}
       {dialog?.type === 'delete' && (

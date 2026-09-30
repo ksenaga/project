@@ -6,7 +6,6 @@ import {
   CircularProgress,
   IconButton,
   Stack,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material'
@@ -14,14 +13,20 @@ import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined'
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined'
 import EditNoteIcon from '@mui/icons-material/EditNoteOutlined'
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
-import { createComment, deleteComment, fetchComments, type Comment } from '../../api/comments'
+import {
+  createComment,
+  deleteComment,
+  fetchComments,
+  fetchMentionableUsers,
+  type Comment,
+} from '../../api/comments'
+import type { Member } from '../../api/users'
 import { ROLE } from '../../constants/role'
 import type { LoginUser } from '../../pages/LoginPage'
 import { timeAgo } from '../../utils/date'
-import LinkifiedText from '../LinkifiedText'
 import UserAvatar from '../UserAvatar'
-
-const BODY_MAX_LENGTH = 2000
+import CommentBody from './CommentBody'
+import CommentInput from './CommentInput'
 
 type Props = {
   user: LoginUser
@@ -41,6 +46,8 @@ const HISTORY_ICONS = {
 // タスクのコメント(やり取り)。作成・変更・移動の自動コメント(変更履歴)もここに並ぶ
 const TaskComments = ({ user, projectId, taskId, onChanged }: Props) => {
   const [comments, setComments] = useState<Comment[] | null>(null)
+  // メンションできる人(プロジェクトのメンバーと管理者)。取れなくてもコメントは使える
+  const [mentionable, setMentionable] = useState<Member[]>([])
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +58,9 @@ const TaskComments = ({ user, projectId, taskId, onChanged }: Props) => {
     fetchComments(projectId, taskId)
       .then((data) => !ignore && setComments(data))
       .catch((err: unknown) => !ignore && setError((err as Error).message))
+    fetchMentionableUsers(projectId, taskId)
+      .then((data) => !ignore && setMentionable(data))
+      .catch(() => {})
     return () => {
       ignore = true
     }
@@ -182,7 +192,7 @@ const TaskComments = ({ user, projectId, taskId, onChanged }: Props) => {
                       variant="body2"
                       sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
                     >
-                      <LinkifiedText text={comment.body} />
+                      <CommentBody text={comment.body} users={mentionable} myId={user.id} />
                     </Typography>
                   </Box>
                 </Box>
@@ -193,22 +203,12 @@ const TaskComments = ({ user, projectId, taskId, onChanged }: Props) => {
       </Box>
 
       <Stack component="form" spacing={1} onSubmit={handleSubmit} noValidate sx={{ mt: 1.5 }}>
-        <TextField
-          multiline
-          minRows={2}
-          maxRows={6}
-          fullWidth
-          placeholder="コメントを書く（Ctrl + Enter で送信）"
+        <CommentInput
           value={body}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-              e.preventDefault()
-              handleSubmit()
-            }
-          }}
+          onChange={setBody}
+          onSubmit={() => handleSubmit()}
           disabled={sending}
-          slotProps={{ htmlInput: { maxLength: BODY_MAX_LENGTH, 'aria-label': 'コメント' } }}
+          candidates={mentionable.filter((m) => m.id !== user.id)}
         />
         <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
           <Button

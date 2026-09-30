@@ -22,3 +22,7 @@ export const createComment = (projectId: number, taskId: number, body: string) =
 
 export const deleteComment = (projectId: number, taskId: number, id: number) =>
   request<void>(`${base(projectId, taskId)}/${id}`, { method: 'DELETE' })
+
+// コメントでメンションできるユーザー(プロジェクトのメンバーと管理者。名前順)
+export const fetchMentionableUsers = (projectId: number, taskId: number) =>
+  request<Member[]>(`${base(projectId, taskId)}/mentionable-users`)

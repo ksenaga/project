@@ -6,6 +6,7 @@ const router = Router({ mergeParams: true })
 
 // 閲覧・投稿はプロジェクトメンバー、削除は書いた本人と管理者(service で制限)
 router.get('/', commentController.list)
+router.get('/mentionable-users', commentController.mentionable)
 router.post('/', commentController.create)
 router.delete('/:id', commentController.remove)
 

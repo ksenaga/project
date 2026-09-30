@@ -1,4 +1,4 @@
-import { useState, type SubmitEvent } from 'react'
+import { useEffect, useRef, useState, type SubmitEvent } from 'react'
 import {
   Alert,
   Box,
@@ -13,26 +13,54 @@ import {
   Stack,
   TextField,
 } from '@mui/material'
+import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined'
 import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
-import type { User, UserInput } from '../api/users'
+import type { UserInput, UserSummary } from '../api/users'
 import { ROLE, ROLE_LABEL } from '../constants/role'
+import { toAvatarImage } from '../utils/avatarImage'
+import UserAvatar from './UserAvatar'
 
 const NAME_MAX_LENGTH = 50
 const PASSWORD_MIN_LENGTH = 8
 const PASSWORD_MAX_LENGTH = 72
 
+// アイコン画像をどうするか(保存したときに反映する)。preview は選んだ画像を表示するための URL
+export type AvatarChange =
+  { type: 'keep' } | { type: 'set'; image: Blob; preview: string } | { type: 'remove' }
+
 type Props = {
   // 渡されたら編集、なければ新規作成
-  target?: User
+  target?: Omit<UserSummary, 'project_count'>
   // 権限を変更できるか(管理者が自分以外を編集・作成するとき)
   canChangeRole: boolean
   onClose: () => void
-  onSubmit: (input: UserInput) => Promise<void>
+  onSubmit: (input: UserInput, avatar: AvatarChange) => Promise<void>
+  // ロックを解除する(管理者が、ロックされたユーザーを編集するときだけ渡す)
+  onUnlock?: () => Promise<void>
 }
 
-const UserFormDialog = ({ target, canChangeRole, onClose, onSubmit }: Props) => {
+const UserFormDialog = ({ target, canChangeRole, onClose, onSubmit, onUnlock }: Props) => {
   const isEdit = target !== undefined
+  const [avatar, setAvatar] = useState<AvatarChange>({ type: 'keep' })
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  // 選び直したとき・閉じたときに、選んだ画像の表示用 URL を解放する
+  useEffect(
+    () => () => {
+      if (avatar.type === 'set') URL.revokeObjectURL(avatar.preview)
+    },
+    [avatar],
+  )
+  // 保存する前でも、選んだ画像(外したときは頭文字)で見た目を確認できる
+  const avatarUrl =
+    avatar.type === 'set'
+      ? avatar.preview
+      : avatar.type === 'remove'
+        ? null
+        : (target?.avatar_url ?? null)
+  const [unlocking, setUnlocking] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
   const [name, setName] = useState(target?.name ?? '')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -68,7 +96,7 @@ const UserFormDialog = ({ target, canChangeRole, onClose, onSubmit }: Props) => 
     setSaving(true)
     setError(null)
     try {
-      await onSubmit(input)
+      await onSubmit(input, avatar)
     } catch (err) {
       setError((err as Error).message)
       setSaving(false)
@@ -84,6 +112,97 @@ const UserFormDialog = ({ target, canChangeRole, onClose, onSubmit }: Props) => 
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
+            {target?.locked && onUnlock && (
+              <Alert
+                severity={unlocked ? 'success' : 'warning'}
+                action={
+                  !unlocked && (
+                    <Button
+                      color="inherit"
+                      size="small"
+                      loading={unlocking}
+                      onClick={async () => {
+                        setUnlocking(true)
+                        try {
+                          await onUnlock()
+                          setUnlocked(true)
+                        } catch (err) {
+                          setError((err as Error).message)
+                        } finally {
+                          setUnlocking(false)
+                        }
+                      }}
+                    >
+                      ロックを解除
+                    </Button>
+                  )
+                }
+              >
+                {unlocked
+                  ? 'ロックを解除しました。ログインできます'
+                  : 'ログインに続けて失敗したため、ロックされています（パスワードを設定し直しても解除されます）'}
+              </Alert>
+            )}
+            {/* アイコン画像。選んだ画像は中央で正方形に切り抜いて縮める */}
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+              <UserAvatar
+                user={{ id: target?.id ?? 0, name: name.trim() || '?', avatar_url: avatarUrl }}
+                size={72}
+              />
+              <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<AddPhotoAlternateOutlinedIcon />}
+                    onClick={() => fileRef.current?.click()}
+                    disabled={saving}
+                  >
+                    画像を選ぶ
+                  </Button>
+                  {avatarUrl && (
+                    <Button
+                      size="small"
+                      color="inherit"
+                      onClick={() =>
+                        setAvatar(target?.avatar_url ? { type: 'remove' } : { type: 'keep' })
+                      }
+                      disabled={saving}
+                    >
+                      画像を外す
+                    </Button>
+                  )}
+                </Stack>
+                <Box
+                  component="span"
+                  sx={{
+                    typography: 'caption',
+                    color: avatarError ? 'error.main' : 'text.secondary',
+                  }}
+                >
+                  {avatarError ?? 'アイコンに使う画像（正方形に切り抜きます）'}
+                </Box>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  hidden
+                  aria-label="アイコン画像"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    setAvatarError(null)
+                    try {
+                      const image = await toAvatarImage(file)
+                      setAvatar({ type: 'set', image, preview: URL.createObjectURL(image) })
+                    } catch (err) {
+                      setAvatarError((err as Error).message)
+                    }
+                  }}
+                />
+              </Stack>
+            </Stack>
             <TextField
               label="ユーザー名"
               required

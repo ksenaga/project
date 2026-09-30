@@ -20,6 +20,8 @@ export type LoginUser = {
   id: number
   name: string
   role: number
+  // アイコン画像の URL(画像がなければ null)
+  avatar_url?: string | null
 }
 
 type Props = {
@@ -52,6 +54,11 @@ const LoginPage = ({ onLoginSuccess }: Props) => {
         body: JSON.stringify({ name: name.trim(), password }),
       })
       if (!res.ok) {
+        // 423: 続けて失敗したためロック中(あと何分かはサーバーのメッセージに入っている)
+        if (res.status === 423) {
+          const data: { message?: string } | null = await res.json().catch(() => null)
+          throw new Error(data?.message ?? 'ロックされています。時間をおいて再度お試しください')
+        }
         throw new Error(
           res.status === 401
             ? 'ユーザー名またはパスワードが正しくありません'

@@ -27,6 +27,7 @@ API設計
 コメント一覧取得	GET	/api/projects/{project_id}/tasks/{task_id}/comments
 コメント投稿	POST	/api/projects/{project_id}/tasks/{task_id}/comments
 コメント削除	DELETE	/api/projects/{project_id}/tasks/{task_id}/comments/{id}
+メンションできるユーザー	GET	/api/projects/{project_id}/tasks/{task_id}/comments/mentionable-users
 【画面名】
 機能	HTTPメソッド	URL
 画面名一覧取得	GET	/api/projects/{project_id}/screens
@@ -55,6 +56,10 @@ API設計
 ユーザー詳細	GET	/api/users/{id}
 ユーザー編集	PATCH	/api/users/{id}
 ユーザー削除	DELETE	/api/users/{id}
+ロックの解除	POST	/api/users/{id}/unlock
+アイコン画像の取得	GET	/api/users/{id}/avatar
+アイコン画像の設定	PUT	/api/users/{id}/avatar
+アイコン画像の削除	DELETE	/api/users/{id}/avatar
 
 【認証方式】
 
@@ -64,6 +69,9 @@ JWTを使用する。
 ・有効期限は1日
 ・JWT にはユーザーIDのみを入れ、リクエストのたびにDBからユーザーを取得する(削除されたユーザーや権限の変更をすぐ反映するため)
 ・ログイン以外のAPIはログインが必要(未ログインは401)
+・パスワードを5回続けて間違えると、そのユーザーは15分間ログインできない(423。正しいパスワードでも不可)。
+　ログインに成功すると失敗の回数は0に戻る。管理者はロックを解除でき、管理者がパスワードを設定し直しても解除される
+・存在しないユーザー名では回数を数えない(ユーザー名の有無が分からないよう、応答は通常の失敗と同じ)
 
 【共通】
 ・日付(deadline)は "YYYY-MM-DD" で送受信する
@@ -71,6 +79,8 @@ JWTを使用する。
 ・status は "未対応" "対応中" "レビュー中" "完了" "対応中止"
 ・PATCH は送った項目だけ更新する
 ・削除は論理削除(deleted_at を設定)。プロジェクトメンバーのみ物理削除
+・ユーザーを返すところ(メンバー・担当者・コメントを書いた人・作成者・ログインユーザーなど)には avatar_url が付く。
+　アイコン画像の URL(/api/users/{id}/avatar?v=設定した日時)で、画像がなければ null。画像を変えると URL も変わる
 
 Request
 ログイン POST /api/login
@@ -184,6 +194,9 @@ Request
 　・type:"change" 項目を変更した(「◯◯さんがタスクを変更しました」の後に、1行ずつ「・期限: 2026-10-01 → 2026-10-15」のように変更内容。
 　　タイトル・担当者・期限・画面名・タグは変更前と変更後、説明・修正内容・修正理由・Git URL・メモは「〜を変更」とだけ書く)
 ※コメントを投稿すると、タスクの担当者に通知する(書いた本人を除く)
+※本文の「@ユーザー名」はメンション。メンションされた人に通知する(書いた本人を除く)。メンションされた担当者には、メンションの通知だけを送る。
+　メンションできるのは、そのプロジェクトのメンバーと管理者。「@」の直前が英数字のもの(メールアドレスなど)や、名前の直後に英数字が続くものはメンションにしない。
+　名前が重なるときは長い名前を優先する(全角の「＠」も可)
 ※本文の「#12」はタスク12への、「http(s)://〜」はそのURLへのリンクとして画面に表示する(別タブで開く)
 コメント一覧取得 GET /api/projects/{project_id}/tasks/{task_id}/comments
 ※古い順
@@ -192,7 +205,7 @@ Request
 		"id":1,
 		"type":"comment",	※comment / create / move / change
 		"body":"原因を調査します",
-		"user":{"id":7,"name":"t_member"},	※書いた人(自動コメントは操作した人)
+		"user":{"id":7,"name":"t_member","avatar_url":null},	※書いた人(自動コメントは操作した人)
 		"created_at":"2026-09-30T03:21:48.042Z"
 	}
 ]
@@ -203,6 +216,11 @@ Request
 ※投稿したコメント1件を返す
 コメント削除 DELETE /api/projects/{project_id}/tasks/{task_id}/comments/{id}
 (なし)
+メンションできるユーザー GET /api/projects/{project_id}/tasks/{task_id}/comments/mentionable-users
+※そのプロジェクトのメンバーと管理者(名前順)。コメント欄で「@」を打ったときの候補に使う
+[
+	{"id":6,"name":"t_member","avatar_url":null}
+]
 
 【タスクの場所】
 タスクの場所を調べる GET /api/tasks/{id}
@@ -258,7 +276,8 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 {
 	"id": 1,
 	"name": "名前",
-	"role": 1
+	"role": 1,
+	"avatar_url": "/api/users/1/avatar?v=1790742664950"
 }
 ログアウト POST /api/logout
 (なし) Cookie を削除する
@@ -266,7 +285,8 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 {
 	"id": 1,
 	"name": "名前",
-	"role": 1
+	"role": 1,
+	"avatar_url": null
 }
 
 【プロジェクト】
@@ -403,7 +423,8 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 　・タスクの担当者になった(作成・編集・コピー)→ 担当者になった人
 　・タスクがレビュー中になった → 全管理者と、そのプロジェクトの担当リーダー
 　・一般ユーザーがタスクの中止を依頼した → 全管理者と、そのプロジェクトの担当リーダー
-　・タスクにコメントが投稿された → そのタスクの担当者
+　・タスクにコメントが投稿された → そのタスクの担当者(メンションされた人を除く)
+　・コメントでメンションされた → メンションされた人
 　・操作した本人には通知しない。通知の作成に失敗しても、元の操作は取り消さない
 通知一覧取得 GET /api/notifications
 ※新しい順に30件。削除されたプロジェクトの通知は出さない
@@ -411,7 +432,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 	"notifications":[
 		{
 			"id":1,
-			"type":"task_review",	※project_member / task_assignee / task_review / task_cancel_request / task_comment
+			"type":"task_review",	※project_member / task_assignee / task_review / task_cancel_request / task_comment / task_mention
 			"project_id":1,
 			"task_id":5,	※プロジェクトの通知は null
 			"message":"t_memberさんがタスク「ログイン修正」(プロジェクト)をレビュー中にしました",
@@ -474,26 +495,33 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 
 【ユーザー】
 ユーザー一覧 GET /api/users
-※id順。project_count は参画しているプロジェクト数
+※id順。project_count は参画しているプロジェクト数。locked はログインに続けて失敗してロックされているか(管理者にだけ返す)
 {
 	"users":[
 		{
 			"id":1,
 			"name":"名前",
 			"role":1,
-			"project_count":2
+			"avatar_url":null,
+			"project_count":2,
+			"locked":false
 		},
 		{}
 	]
 }
 ユーザー作成 POST /api/users
 ユーザー編集 PATCH /api/users/{id}
-※2つとも同じ形
+ロックの解除 POST /api/users/{id}/unlock
+アイコン画像の設定 PUT /api/users/{id}/avatar
+アイコン画像の削除 DELETE /api/users/{id}/avatar
+※5つとも同じ形(一覧の1件と同じ)
 {
 	"id":1,
 	"name":"名前",
 	"role":1,
-	"project_count":2
+	"avatar_url":"/api/users/1/avatar?v=1790742664950",
+	"project_count":2,
+	"locked":false
 }
 ユーザー詳細 GET /api/users/{id}
 ※projects は参画しているプロジェクト(期限が近い順)
@@ -510,6 +538,15 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 }
 ユーザー削除 DELETE /api/users/{id}
 (なし)
+
+【アイコン画像】
+アイコン画像の取得 GET /api/users/{id}/avatar
+※ログインしていれば誰でも見られる。画像のデータをそのまま返す(Content-Type は設定した形式)。
+　URL に設定した日時(?v=)が付くので、長くキャッシュさせる(Cache-Control: private, max-age=31536000, immutable)
+アイコン画像の設定 PUT /api/users/{id}/avatar
+※管理者は全員、それ以外は自分だけ。本文は画像のデータそのもの(Content-Type: image/png / image/jpeg / image/webp)。1MB まで。
+　画面では、選んだ画像を中央で正方形に切り抜き、256×256 の WebP に縮めてから送る
+※すでにあれば置き換える
 
 【エラー】
 エラー時は message を返す。画面で見分けが必要なエラーには code も付ける
@@ -538,6 +575,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"自分の権限は変更できません"
 ・"自分自身は削除できません"
 ・"自分をプロジェクトメンバーから外すことはできません"(リーダーのプロジェクト編集)
+・"画像は PNG・JPEG・WebP のいずれかにしてください"(アイコン画像の設定。形式が違う・中身が画像でない)
 401 認証されていない
 ・"ログインしてください"
 ・"ユーザー名またはパスワードが正しくありません"(ログイン)
@@ -549,6 +587,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"タスクが存在しません"
 ・"ユーザーが存在しません"
 ・"画面名が存在しません"
+・"アイコン画像が設定されていません"(アイコン画像の取得)
 409 Conflict
 ・"未完了のタスクを担当しているメンバーはプロジェクトから外せません"(プロジェクト編集)
 ・"完了したタスクは編集できません"(タスク編集)
@@ -559,12 +598,16 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ・"タスクが入っているリストは削除できません"(リスト削除)
 ・"タスクで使われている画面名は削除できません"(画面名削除)
 ・"未完了のタスクを担当しているため削除できません"(ユーザー削除)
+413 大きすぎる
+・"データが大きすぎます"(アイコン画像が1MBを超える)
+423 ロック中
+・"ログインに5回続けて失敗したため、ロックしています。約15分後にもう一度お試しください"(ログイン。code: ACCOUNT_LOCKED。分はロックが解けるまでの残り)
 500 サーバーエラー
 ・"サーバーエラーが発生しました"
 
 ログイン POST /api/login
 成功 200
-失敗 400 or 401
+失敗 400 or 401 or 423(ロック中)
 ログアウト POST /api/logout
 成功 204
 ログインユーザー取得 GET /api/me
@@ -611,6 +654,9 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 コメント投稿 POST /api/projects/{project_id}/tasks/{task_id}/comments
 成功 201
 失敗 400 or 401 or 403 or 404
+メンションできるユーザー GET /api/projects/{project_id}/tasks/{task_id}/comments/mentionable-users
+成功 200
+失敗 401 or 403 or 404
 コメント削除 DELETE /api/projects/{project_id}/tasks/{task_id}/comments/{id}
 成功 204
 失敗 401 or 403(本人・管理者以外、自動コメント) or 404
@@ -679,3 +725,15 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 ユーザー削除 DELETE /api/users/{id}
 成功 204
 失敗 400(自分自身) or 401 or 403(管理者以外) or 404 or 409(未完了のタスクを担当している)
+ロックの解除 POST /api/users/{id}/unlock
+成功 200
+失敗 400 or 401 or 403(管理者以外) or 404
+アイコン画像の取得 GET /api/users/{id}/avatar
+成功 200
+失敗 400 or 401 or 404(ユーザー・画像がない)
+アイコン画像の設定 PUT /api/users/{id}/avatar
+成功 200
+失敗 400(形式) or 401 or 403(管理者以外が他人の画像を設定) or 404 or 413(1MB を超える)
+アイコン画像の削除 DELETE /api/users/{id}/avatar
+成功 200
+失敗 400 or 401 or 403 or 404

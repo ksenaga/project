@@ -12,18 +12,23 @@ export class ApiError extends Error {
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  // Blob(画像など)はそのまま、それ以外は JSON にして送る
   body?: unknown
 }
 
 // /api への fetch。失敗時はサーバーの message を持つ ApiError を投げる
 export const request = async <T>(path: string, { method = 'GET', body }: RequestOptions = {}) => {
+  const isBlob = body instanceof Blob
   let res: Response
   try {
     res = await fetch(`/api${path}`, {
       method,
       credentials: 'include',
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers:
+        body === undefined
+          ? undefined
+          : { 'Content-Type': isBlob ? body.type : 'application/json' },
+      body: body === undefined ? undefined : isBlob ? body : JSON.stringify(body),
     })
   } catch {
     throw new ApiError(0, 'サーバーに接続できませんでした')

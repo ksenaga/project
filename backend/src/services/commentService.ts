@@ -1,8 +1,11 @@
 import { forbidden, notFound } from '../errors/HttpError'
 import * as commentRepository from '../repositories/commentRepository'
 import * as taskRepository from '../repositories/taskRepository'
+import * as userRepository from '../repositories/userRepository'
 import { COMMENT_TYPE, type Comment } from '../types/comment'
+import type { Member } from '../types/project'
 import { ROLE, type AuthUser } from '../types/user'
+import { findMentionedUsers } from './mention'
 import * as notificationService from './notificationService'
 import { ensureProjectAccess } from './projectAccess'
 
@@ -33,9 +36,24 @@ export const create = async (
 ): Promise<Comment> => {
   const task = await ensureTask(projectId, taskId, user)
   const id = await commentRepository.create(taskId, user.id, COMMENT_TYPE.COMMENT, body)
-  // 担当者へ通知する(書いた本人は除く)
-  await notificationService.notifyCommented(projectId, task, body, user)
+  // メンションされた人と、担当者へ通知する(書いた本人は除く)。
+  // メンションされた担当者には、メンションの通知だけを送る(同じコメントで2つ届かないように)
+  const mentioned = findMentionedUsers(body, await userRepository.findMentionable(projectId)).map(
+    (mentionedUser) => mentionedUser.id,
+  )
+  await notificationService.notifyMentioned(projectId, task, body, mentioned, user)
+  await notificationService.notifyCommented(projectId, task, body, user, mentioned)
   return (await commentRepository.findById(taskId, id))!
+}
+
+// コメントでメンションできるユーザー(プロジェクトのメンバーと管理者。名前順)
+export const mentionable = async (
+  projectId: number,
+  taskId: number,
+  user: AuthUser,
+): Promise<Member[]> => {
+  await ensureTask(projectId, taskId, user)
+  return userRepository.findMentionable(projectId)
 }
 
 export const remove = async (

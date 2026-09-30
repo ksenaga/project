@@ -10,6 +10,17 @@ created_at	datetime(3)			v
 updater	bigint unsigned		users.id		
 updated_at	datetime(3)				
 deleted_at	datetime(3)				
+failed_login_count	int unsigned			v		※ログインに続けて失敗した回数(初期値0。成功・ロックで0に戻す)
+locked_until	datetime(3)					※この日時までログインできない(NULL ならロックしていない)
+avatar_updated_at	datetime(3)					※アイコン画像を設定した日時(NULL なら画像なし。画像の URL に付けてキャッシュを切り替える)
+
+user_avatars(ユーザーのアイコン画像)(テーブル・列にDBのコメントあり)(物理削除)
+列名	データ・タイプ	PK	FK	Not null	オートインクリメント
+user_id	bigint unsigned	v	users.id	v	
+content_type	varchar(30)			v	
+data	mediumblob			v	
+created_at	datetime(3)			v	
+※画像は users とは別のテーブルに持つ(一覧などで users を読むときに画像のデータまで読まないように)
 
 projects(プロジェクト管理)
 列名	データ・タイプ	PK	FK	Not null	オートインクリメント
@@ -143,9 +154,9 @@ updated_at	datetime(3)
 ・以前の tasks.screen(自由入力の文字列)は、マイグレーション(20260929000001_create_screens)で screens に移し、tasks.screen_id に置き換えた
 
 DBのコメント
-・tags / task_tags / notifications / task_comments はテーブルと列に DB のコメントを付けている(それ以外のテーブルは未設定)
+・tags / task_tags / notifications / task_comments / user_avatars はテーブルと列に DB のコメントを付けている(それ以外のテーブルは未設定。users は追加した列のみ)
 ・task_comments.type:comment(人が書いたコメント)/ create(タスクを作成したときの自動コメント)/ move(タスクを移動したときの自動コメント。誰がどこからどこへ移動したかのログ代わり)/ change(項目を変更したときの自動コメント。変更内容を1行ずつ記録)。自動コメントは削除できない
-・notifications.type:project_member(プロジェクトのメンバーに追加された)/ task_assignee(タスクの担当者になった)/ task_review(タスクがレビュー中になった)/ task_cancel_request(中止依頼)/ task_comment(担当しているタスクにコメントが投稿された)。message は通知したときの名前で作った文章。read_at が NULL なら未読
+・notifications.type:project_member(プロジェクトのメンバーに追加された)/ task_assignee(タスクの担当者になった)/ task_review(タスクがレビュー中になった)/ task_cancel_request(中止依頼)/ task_comment(担当しているタスクにコメントが投稿された)/ task_mention(コメントでメンションされた)。message は通知したときの名前で作った文章。read_at が NULL なら未読
 
 テーブルの管理
 ・テーブルは Knex のマイグレーションで作成・変更する(backend/db/migrations)
@@ -156,6 +167,7 @@ DBのコメント
 dbのつながり
 users
  │
+ ├── user_avatars(アイコン画像。1人1枚)
  ├──< projects ──< tasks
  │      │           ├──< task_assignees >── users(担当者)
  │      │           ├──< task_tags >── tags(タグ)

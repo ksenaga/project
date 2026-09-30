@@ -4,6 +4,7 @@ import TaskAltIcon from '@mui/icons-material/TaskAlt'
 import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
 import NotificationBell from './NotificationBell'
+import UserAvatar from './UserAvatar'
 
 const NAV_ITEMS = [
   { to: '/projects', label: 'プロジェクト' },
@@ -51,6 +52,7 @@ const AppLayout = () => {
           </Stack>
           {user && (
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <UserAvatar user={user} size={30} />
               <Typography
                 variant="body2"
                 sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}

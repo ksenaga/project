@@ -1,17 +1,20 @@
 import { db, type Conn } from '../db/knex'
 import type { Member } from '../types/project'
+import { toMember } from './userRepository'
 
 // 複数プロジェクトのメンバーをまとめて取得する(追加した順)
 export const findByProjectIds = async (
   projectIds: number[],
 ): Promise<(Member & { project_id: number })[]> => {
   if (projectIds.length === 0) return []
-  return db('project_member as pm')
-    .join('users as u', 'u.id', 'pm.user_id')
-    .select('pm.project_id', 'u.id', 'u.name')
-    .whereIn('pm.project_id', projectIds)
-    .whereNull('u.deleted_at')
-    .orderBy([{ column: 'pm.created_at' }, { column: 'u.id' }])
+  const rows: { project_id: number; id: number; name: string; avatar_updated_at: Date | null }[] =
+    await db('project_member as pm')
+      .join('users as u', 'u.id', 'pm.user_id')
+      .select('pm.project_id', 'u.id', 'u.name', 'u.avatar_updated_at')
+      .whereIn('pm.project_id', projectIds)
+      .whereNull('u.deleted_at')
+      .orderBy([{ column: 'pm.created_at' }, { column: 'u.id' }])
+  return rows.map((row) => ({ project_id: row.project_id, ...toMember(row) }))
 }
 
 export const findUserIds = async (projectId: number, conn: Conn = db): Promise<number[]> => {

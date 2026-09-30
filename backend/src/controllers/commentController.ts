@@ -16,6 +16,12 @@ export const list = async (req: Request, res: Response) => {
   res.json(await commentService.list(projectId, taskId, req.user!))
 }
 
+// GET /api/projects/:projectId/tasks/:taskId/comments/mentionable-users
+export const mentionable = async (req: Request, res: Response) => {
+  const { projectId, taskId } = params(req)
+  res.json(await commentService.mentionable(projectId, taskId, req.user!))
+}
+
 // POST /api/projects/:projectId/tasks/:taskId/comments
 export const create = async (req: Request, res: Response) => {
   const { projectId, taskId } = params(req)

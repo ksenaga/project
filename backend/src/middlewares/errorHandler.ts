@@ -19,6 +19,11 @@ export const errorHandler = (err: unknown, _req: Request, res: Response, _next: 
     res.status(400).json({ message: 'リクエストが不正です。' })
     return
   }
+  // 本文が大きすぎる(アイコン画像など)
+  if (err instanceof Error && 'type' in err && err.type === 'entity.too.large') {
+    res.status(413).json({ message: 'データが大きすぎます' })
+    return
+  }
 
   console.error(err)
   res.status(500).json({ message: 'サーバーエラーが発生しました' })
