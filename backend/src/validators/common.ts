@@ -49,3 +49,9 @@ export const parseEnum = <T extends string>(value: unknown, allowed: readonly T[
   if (typeof value !== 'string' || !allowed.includes(value as T)) throw badRequest()
   return value as T
 }
+
+// 色は #RRGGBB(小文字にそろえる)。リスト・画面名の色で使う
+export const parseColor = (value: unknown): string => {
+  if (typeof value !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(value)) throw badRequest()
+  return value.toLowerCase()
+}

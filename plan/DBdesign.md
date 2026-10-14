@@ -153,6 +153,7 @@ screens(画面名管理)(project_idとnameで複合ユニーク制約)(物理削
 id	bigint unsigned	v		v	v
 project_id	bigint unsigned		projects.id	v	
 name	varchar(50)			v	
+color	varchar(7)			v		※画面名の色(#RRGGBB。初期値 #f1f5f9)
 creater	bigint unsigned		users.id	v	
 created_at	datetime(3)			v	
 updater	bigint unsigned		users.id		

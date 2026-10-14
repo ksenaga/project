@@ -26,7 +26,10 @@ import {
   updateScreen,
   type Screen,
 } from '../../api/screens'
+import { DEFAULT_LIST_COLOR } from '../../constants/listColor'
 import { CancelIconButton, SaveIconButton } from '../ActionIconButtons'
+import ScreenLabel from '../ScreenLabel'
+import ListColorPicker from './ListColorPicker'
 
 const NAME_MAX_LENGTH = 50
 
@@ -41,7 +44,9 @@ type Props = {
 const ScreenManageDialog = ({ projectId, onClose, onChanged }: Props) => {
   const [screens, setScreens] = useState<Screen[] | null>(null)
   const [newName, setNewName] = useState('')
-  const [editing, setEditing] = useState<{ id: number; name: string } | null>(null)
+  // 追加する画面名の色(追加したあとも同じ色のまま、続けて追加できる)
+  const [newColor, setNewColor] = useState<string>(DEFAULT_LIST_COLOR)
+  const [editing, setEditing] = useState<{ id: number; name: string; color: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -77,14 +82,14 @@ const ScreenManageDialog = ({ projectId, onClose, onChanged }: Props) => {
     e.preventDefault()
     const name = newName.trim()
     if (name === '') return
-    if (await run(() => createScreen(projectId, name))) setNewName('')
+    if (await run(() => createScreen(projectId, { name, color: newColor }))) setNewName('')
   }
 
   const handleSaveEdit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!editing || editing.name.trim() === '') return
-    const { id, name } = editing
-    if (await run(() => updateScreen(projectId, id, name.trim()))) setEditing(null)
+    const { id, name, color } = editing
+    if (await run(() => updateScreen(projectId, id, { name: name.trim(), color }))) setEditing(null)
   }
 
   return (
@@ -108,7 +113,14 @@ const ScreenManageDialog = ({ projectId, onClose, onChanged }: Props) => {
             </Alert>
           )}
 
-          <Stack component="form" direction="row" spacing={1} onSubmit={handleAdd} noValidate>
+          <Stack
+            component="form"
+            direction="row"
+            spacing={1.5}
+            onSubmit={handleAdd}
+            noValidate
+            sx={{ alignItems: 'center' }}
+          >
             <TextField
               label="画面名を追加"
               placeholder="例: ログイン画面"
@@ -118,6 +130,13 @@ const ScreenManageDialog = ({ projectId, onClose, onChanged }: Props) => {
               onChange={(e) => setNewName(e.target.value)}
               disabled={busy}
               slotProps={{ htmlInput: { maxLength: NAME_MAX_LENGTH } }}
+            />
+            {/* 画面名の色(タスクの画面名を、この色のラベルで表示する) */}
+            <ListColorPicker
+              value={newColor}
+              onChange={setNewColor}
+              label="追加する画面名の色"
+              columns={12}
             />
             <Button
               type="submit"
@@ -173,6 +192,12 @@ const ScreenManageDialog = ({ projectId, onClose, onChanged }: Props) => {
                             htmlInput: { maxLength: NAME_MAX_LENGTH, 'aria-label': '画面名' },
                           }}
                         />
+                        <ListColorPicker
+                          value={editing.color}
+                          onChange={(color) => setEditing({ ...editing, color })}
+                          label="画面名の色"
+                          columns={12}
+                        />
                         <SaveIconButton type="submit" size="small" disabled={busy} />
                         <CancelIconButton
                           size="small"
@@ -182,16 +207,18 @@ const ScreenManageDialog = ({ projectId, onClose, onChanged }: Props) => {
                       </Stack>
                     ) : (
                       <>
-                        <Typography sx={{ flexGrow: 1, wordBreak: 'break-word' }}>
-                          {screen.name}
-                        </Typography>
+                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                          <ScreenLabel screen={screen} sx={{ fontSize: 15 }} />
+                        </Box>
                         <Typography variant="body2" color="text.secondary" sx={{ mx: 2 }}>
                           タスク {screen.task_count} 件
                         </Typography>
                         <Tooltip title="編集">
                           <IconButton
                             aria-label={`${screen.name}を編集`}
-                            onClick={() => setEditing({ id: screen.id, name: screen.name })}
+                            onClick={() =>
+                              setEditing({ id: screen.id, name: screen.name, color: screen.color })
+                            }
                             disabled={busy}
                           >
                             <EditOutlinedIcon />

@@ -278,8 +278,10 @@ Response
 画面名追加 POST /api/projects/{project_id}/screens
 画面名編集 PATCH /api/projects/{project_id}/screens/{id}
 {
-	"name":"ログイン画面"	※必須。50文字以内。同じプロジェクトで重複不可
+	"name":"ログイン画面",	※追加では必須。50文字以内。同じプロジェクトで重複不可
+	"color":"#dbeafe"	※任意。#RRGGBB(明るい色)。追加で省略するとグレー(#f1f5f9)
 }
+※編集は送った項目だけ変更する
 画面名削除 DELETE /api/projects/{project_id}/screens/{id}
 
 【ユーザー】
@@ -416,7 +418,8 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 		],
 		"screen":{	※画面名を必須にする前に作ったタスクは null
 			"id":1,
-			"name":"ログイン画面"
+			"name":"ログイン画面",
+			"color":"#dbeafe"	※画面名の色
 		},
 		"list_id":null,	※追加したリストに入っているときはそのリストの ID(status は "対応中")
 		"comment_count":2	※人が書いたコメントの数(自動コメントは数えない)
@@ -546,6 +549,7 @@ Set-Cookie: token=JWT; HttpOnly; SameSite=Lax; Max-Age=86400
 {
 	"id":1,
 	"name":"ログイン画面",
+	"color":"#dbeafe",
 	"task_count":2
 }
 画面名削除 DELETE /api/projects/{project_id}/screens/{id}

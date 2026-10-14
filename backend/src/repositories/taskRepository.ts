@@ -25,6 +25,7 @@ const summaryColumns = [
   't.list_id',
   's.id as screen_id',
   's.name as screen_name',
+  's.color as screen_color',
 ]
 
 const detailColumns = [
@@ -40,6 +41,7 @@ const detailColumns = [
 type Row = Omit<TaskSummary, 'assignees' | 'screen'> & {
   screen_id: number | null
   screen_name: string | null
+  screen_color: string | null
 }
 
 // 複数タスクの担当者をまとめて取得する(ID 順)
@@ -81,7 +83,7 @@ const toTasks = async <T extends Row>(rows: T[]) => {
     findTagsByTaskIds(ids),
     commentRepository.countByTaskIds(ids),
   ])
-  return rows.map(({ screen_id, screen_name, ...rest }) => ({
+  return rows.map(({ screen_id, screen_name, screen_color, ...rest }) => ({
     ...rest,
     // 詳細の項目を取ったときだけ updated_at がある(ISO 8601 にそろえる)
     ...('updated_at' in rest && {
@@ -92,7 +94,7 @@ const toTasks = async <T extends Row>(rows: T[]) => {
     assignees: assignees.get(rest.id) ?? [],
     tags: tags.get(rest.id) ?? [],
     comment_count: commentCounts.get(rest.id) ?? 0,
-    screen: screen_id === null ? null : { id: screen_id, name: screen_name! },
+    screen: screen_id === null ? null : { id: screen_id, name: screen_name!, color: screen_color! },
   }))
 }
 

@@ -35,7 +35,6 @@ import {
   TASK_STATUS_COLOR,
 } from '../../constants/taskStatus'
 import type { LoginUser } from '../../pages/LoginPage'
-import { formatDate } from '../../utils/date'
 import { taskLink } from '../../utils/taskLink'
 import { canDeleteTask, canEditTask } from '../../utils/taskPermission'
 import LinkifiedText from '../LinkifiedText'
@@ -44,6 +43,8 @@ import UserAvatar from '../UserAvatar'
 import CancelRequestDialog from './CancelRequestDialog'
 import TaskComments from './TaskComments'
 import TaskImageGallery from './TaskImageGallery'
+import DeadlineLabel from '../DeadlineLabel'
+import ScreenLabel from '../ScreenLabel'
 
 type Props = {
   user: LoginUser
@@ -336,11 +337,12 @@ const TaskDetailDialog = ({
                 {/* 期限・画面名 / 担当者・タグ の2行2列 */}
                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2.5 }}>
                   <Field label="期限">
-                    <Typography variant="body2">{formatDate(task.deadline)}</Typography>
+                    {/* 一覧と同じく、今日からの日数の色で表示する */}
+                    <DeadlineLabel task={task} />
                   </Field>
                   <Field label="画面名">
                     {/* 画面名を必須にする前に作ったタスクは、画面名がない場合がある */}
-                    <Text value={task.screen?.name ?? null} />
+                    {task.screen ? <ScreenLabel screen={task.screen} /> : <Text value={null} />}
                   </Field>
                   <Field label="担当者">
                     <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1.5 }}>

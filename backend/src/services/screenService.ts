@@ -25,11 +25,15 @@ export const list = async (projectId: number, user: AuthUser): Promise<Screen[]>
   return screenRepository.findByProject(projectId)
 }
 
-export const create = async (projectId: number, name: string, user: AuthUser): Promise<Screen> => {
+export const create = async (
+  projectId: number,
+  input: { name: string; color?: string },
+  user: AuthUser,
+): Promise<Screen> => {
   await ensureProjectAccess(projectId, user)
-  if (await screenRepository.existsByName(projectId, name)) throw duplicateName()
+  if (await screenRepository.existsByName(projectId, input.name)) throw duplicateName()
   try {
-    const id = await screenRepository.create(projectId, name, user.id)
+    const id = await screenRepository.create(projectId, input, user.id)
     return await getScreen(projectId, id)
   } catch (err) {
     if (isDuplicateEntry(err)) throw duplicateName()
@@ -40,13 +44,17 @@ export const create = async (projectId: number, name: string, user: AuthUser): P
 export const update = async (
   projectId: number,
   id: number,
-  name: string,
+  fields: { name?: string; color?: string },
   user: AuthUser,
 ): Promise<Screen> => {
   await ensureProjectAccess(projectId, user)
-  if (await screenRepository.existsByName(projectId, name, id)) throw duplicateName()
+  if (
+    fields.name !== undefined &&
+    (await screenRepository.existsByName(projectId, fields.name, id))
+  )
+    throw duplicateName()
   try {
-    const count = await screenRepository.update(projectId, id, name, user.id)
+    const count = await screenRepository.update(projectId, id, fields, user.id)
     if (count === 0) throw screenNotFound()
   } catch (err) {
     if (isDuplicateEntry(err)) throw duplicateName()

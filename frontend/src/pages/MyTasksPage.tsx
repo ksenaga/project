@@ -25,7 +25,6 @@ import {
   Typography,
 } from '@mui/material'
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined'
-import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import SearchIcon from '@mui/icons-material/Search'
 import { Link as RouterLink, useNavigate } from 'react-router'
 import { ApiError } from '../api/client'
@@ -38,7 +37,8 @@ import {
   deadlineColorOf,
   type DeadlineColor,
 } from '../constants/deadlineColor'
-import { formatDate } from '../utils/date'
+import ScreenLabel from '../components/ScreenLabel'
+import DeadlineLabel from '../components/DeadlineLabel'
 
 type SortKey = 'title' | 'project' | 'deadline'
 type Sort = { key: SortKey; direction: 'asc' | 'desc' }
@@ -276,8 +276,6 @@ const MyTasksPage = () => {
                 </TableRow>
               )}
               {shown.map((task) => {
-                const deadlineColor = deadlineColorOf(task)
-                const style = deadlineColor && DEADLINE_COLOR_STYLE[deadlineColor]
                 return (
                   <TableRow
                     key={task.id}
@@ -340,26 +338,7 @@ const MyTasksPage = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Box
-                        component="span"
-                        sx={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 0.5,
-                          px: 0.75,
-                          py: 0.25,
-                          borderRadius: 1,
-                          fontSize: 13,
-                          whiteSpace: 'nowrap',
-                          fontWeight: style ? 600 : undefined,
-                          ...(style
-                            ? { bgcolor: style.bg, color: style.text }
-                            : { color: 'text.secondary' }),
-                        }}
-                      >
-                        <EventOutlinedIcon sx={{ fontSize: 15 }} />
-                        {formatDate(task.deadline)}
-                      </Box>
+                      <DeadlineLabel task={task} />
                     </TableCell>
                     <TableCell>
                       {task.tags.length === 0 ? (
@@ -375,14 +354,13 @@ const MyTasksPage = () => {
                       )}
                     </TableCell>
                     <TableCell sx={{ maxWidth: 180 }}>
-                      <Typography
-                        variant="body2"
-                        noWrap
-                        color={task.screen ? undefined : 'text.disabled'}
-                        title={task.screen?.name}
-                      >
-                        {task.screen?.name ?? '—'}
-                      </Typography>
+                      {task.screen ? (
+                        <ScreenLabel screen={task.screen} />
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">
+                          —
+                        </Typography>
+                      )}
                     </TableCell>
                   </TableRow>
                 )

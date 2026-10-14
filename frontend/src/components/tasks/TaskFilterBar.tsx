@@ -21,6 +21,7 @@ import type { Tag } from '../../api/tags'
 import type { Member } from '../../api/users'
 import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
+import ScreenLabel from '../ScreenLabel'
 
 type Props = {
   filter: TaskFilter
@@ -130,7 +131,7 @@ const TaskFilterBar = ({ filter, onChange, members, screens, tags, resultCount }
         <MenuItem value="">すべて</MenuItem>
         {screens.map((s) => (
           <MenuItem key={s.id} value={s.id}>
-            {s.name}
+            <ScreenLabel screen={s} />
           </MenuItem>
         ))}
       </TextField>

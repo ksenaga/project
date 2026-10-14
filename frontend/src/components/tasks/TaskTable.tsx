@@ -21,15 +21,14 @@ import {
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined'
-import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import ViewColumnOutlinedIcon from '@mui/icons-material/ViewColumnOutlined'
 import type { BoardList } from '../../api/boardLists'
 import type { Task, TaskSummary } from '../../api/tasks'
-import { DEADLINE_COLOR_STYLE, deadlineColorOf } from '../../constants/deadlineColor'
-import { formatDate } from '../../utils/date'
 import { listOfTask } from '../../utils/taskPermission'
 import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
+import DeadlineLabel from '../DeadlineLabel'
+import ScreenLabel from '../ScreenLabel'
 
 // リスト表示のタスク(説明・メモなどは詳細の項目を取得したときだけ入っている)
 type Row = TaskSummary & Partial<Task>
@@ -120,30 +119,7 @@ const COLUMNS: Column[] = [
     label: '期限',
     width: 140,
     sortValue: (task) => task.deadline,
-    render: (task) => {
-      const color = deadlineColorOf(task)
-      const style = color && DEADLINE_COLOR_STYLE[color]
-      return (
-        <Box
-          component="span"
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 0.5,
-            px: 0.75,
-            py: 0.25,
-            borderRadius: 1,
-            fontSize: 13,
-            whiteSpace: 'nowrap',
-            fontWeight: style ? 600 : undefined,
-            ...(style ? { bgcolor: style.bg, color: style.text } : { color: 'text.secondary' }),
-          }}
-        >
-          <EventOutlinedIcon sx={{ fontSize: 15 }} />
-          {formatDate(task.deadline)}
-        </Box>
-      )
-    },
+    render: (task) => <DeadlineLabel task={task} />,
   },
   {
     key: 'assignee',
@@ -185,14 +161,7 @@ const COLUMNS: Column[] = [
     label: '画面名',
     width: 150,
     sortValue: (task) => task.screen?.name ?? '￿',
-    render: (task) =>
-      task.screen ? (
-        <Typography variant="body2" noWrap title={task.screen.name}>
-          {task.screen.name}
-        </Typography>
-      ) : (
-        <Empty />
-      ),
+    render: (task) => (task.screen ? <ScreenLabel screen={task.screen} /> : <Empty />),
   },
   {
     key: 'detail',

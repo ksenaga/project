@@ -33,6 +33,7 @@ import TagLabel from '../TagLabel'
 import UserAvatar from '../UserAvatar'
 import TaskImageEditor from './TaskImageEditor'
 import { CancelIconButton, SaveIconButton } from '../ActionIconButtons'
+import ScreenLabel from '../ScreenLabel'
 
 const TITLE_MAX_LENGTH = 50
 const VARCHAR_MAX_LENGTH = 255
@@ -316,7 +317,7 @@ const TaskFormDialog = ({
                 )}
                 {screens.map((s) => (
                   <MenuItem key={s.id} value={s.id}>
-                    {s.name}
+                    <ScreenLabel screen={s} />
                   </MenuItem>
                 ))}
               </TextField>

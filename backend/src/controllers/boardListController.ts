@@ -1,17 +1,17 @@
 import type { Request, Response } from 'express'
 import { badRequest } from '../errors/HttpError'
 import * as boardListService from '../services/boardListService'
-import { parseBody, parseId, parseIdArray, parseRequiredString } from '../validators/common'
+import {
+  parseBody,
+  parseColor,
+  parseId,
+  parseIdArray,
+  parseRequiredString,
+} from '../validators/common'
 
 const NAME_MAX_LENGTH = 50
 
 const parseName = (body: unknown) => parseRequiredString(parseBody(body).name, NAME_MAX_LENGTH)
-
-// 背景色は #RRGGBB(同じ色のリストがあってもよい)
-const parseColor = (value: unknown): string => {
-  if (typeof value !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(value)) throw badRequest()
-  return value.toLowerCase()
-}
 
 const params = (req: Request) => ({
   projectId: parseId(req.params.projectId),
